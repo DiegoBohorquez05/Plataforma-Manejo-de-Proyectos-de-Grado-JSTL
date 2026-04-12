@@ -1,0 +1,17 @@
+<%@ page import="java.sql.*" %>
+<%
+    String driver = "com.mysql.cj.jdbc.Driver"; 
+    String url = "jdbc:mysql://u5ie3p1sipcvgta1:2fi2YaXZUttpBVQoLVry@b4k62fq9oe2ii4tlp1f9-mysql.services.clever-cloud.com:3306/b4k62fq9oe2ii4tlp1f9";
+    String user = "u5ie3p1sipcvgta1";
+    String pass = "2fi2YaXZUttpBVQoLVry";
+
+    Connection conexion = null;
+
+    try {
+        Class.forName(driver);
+        conexion = DriverManager.getConnection(url, user, pass);
+        
+    } catch (Exception e) {
+        out.println("error de conexion: " + e.getMessage());
+    }
+%>
