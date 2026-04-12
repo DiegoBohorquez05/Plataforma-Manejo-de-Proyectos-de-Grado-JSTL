@@ -78,7 +78,7 @@
         </header>
         
         <nav class="d-grid gap-3">
-            <a href="admin.jsp" class="btn btn-role">Administrador</a>
+            <a href="admin_login.jsp" class="btn btn-role">Administrador</a>
             <a href="coordinador.jsp" class="btn btn-role">Coordinador</a>
             <a href="director.jsp" class="btn btn-role">Director</a>
             <a href="evaluador.jsp" class="btn btn-role">Evaluador</a>
