@@ -1,97 +1,120 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Proyectos de Grado | Inicio</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>InmoHome - Portal de Proyectos de Grado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-dark: #212529;
-            --accent-color: #343a40; /* Gris oscuro profesional */
-            --text-main: #dee2e6;
+        body { 
+            background: #0f0f0f; 
+            color: white; 
+            font-family: 'Inter', sans-serif; 
+            min-height: 100vh;
         }
-
-        body {
-            background-color: #1a1d20; /* Fondo oscuro profundo */
-            color: var(--text-main);
-            height: 100vh;
+        .hero-section {
+            padding: 100px 0;
+            background: radial-gradient(circle at top right, #1a1c1e, #000000);
+        }
+        .role-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            transition: 0.4s;
+            text-align: center;
+            height: 100%;
             display: flex;
-            align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            flex-direction: column;
+            justify-content: center;
         }
-
-        .login-container {
-            max-width: 450px;
-            margin: auto;
-            padding: 3rem 2rem;
-            border-radius: 8px;
-            background-color: #2b3035; /* Gris ligeramente más claro que el fondo */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid #3d4246;
+        .role-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #ffc107;
         }
-
-        .system-logo {
-            font-size: 1.5rem;
-            font-weight: 300;
-            letter-spacing: 2px;
-            border-bottom: 1px solid #495057;
-            padding-bottom: 1rem;
+        .role-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #ffc107;
         }
-
-        /* Unificando el color de todos los botones */
-        .btn-role {
-            background-color: #495057;
-            border: 1px solid #6c757d;
-            color: #ffffff;
-            padding: 0.8rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.9rem;
+        .btn-access {
+            background: transparent;
+            border: 1px solid #ffc107;
+            color: #ffc107;
+            font-weight: 600;
+            border-radius: 10px;
+            margin-top: 15px;
+            transition: 0.3s;
         }
-
-        .btn-role:hover {
-            background-color: #343a40;
-            border-color: #adb5bd;
-            color: #ffffff;
-            transform: translateY(-2px);
+        .btn-access:hover {
+            background: #ffc107;
+            color: #000;
         }
-
-        .footer-text {
-            font-size: 0.75rem;
-            color: #6c757d;
-            margin-top: 2rem;
+        .admin-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.8rem;
+            text-decoration: none;
         }
+        .admin-link:hover { color: #ffc107; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="login-container text-center">
-        <header class="mb-4">
-            <h1 class="system-logo text-uppercase">Plataforma de Proyectos</h1>
-            <p class="small text-white-50 mt-3">Identifíquese para acceder al panel correspondiente</p>
-        </header>
-        
-        <nav class="d-grid gap-3">
-            <a href="admin_login.jsp" class="btn btn-role">Administrador</a>
-            <a href="coordinador.jsp" class="btn btn-role">Coordinador</a>
-            <a href="director.jsp" class="btn btn-role">Director</a>
-            <a href="evaluador.jsp" class="btn btn-role">Evaluador</a>
-            <a href="estudiante.jsp" class="btn btn-role">Estudiante</a>
-        </nav>
-        
-        <footer class="footer-text">
-            Módulo de Gestión Académica v1.0 <br>
-            Tecnología: JSP & JSTL
-        </footer>
-    </div>
-</div>
+    <section class="hero-section text-center">
+        <div class="container">
+            <h1 class="display-4 font-weight-bold mb-3">Portal de Gestión de Grados</h1>
+            <p class="lead text-muted mb-5">Seleccione su rol institucional para ingresar al sistema</p>
+            
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <div class="role-card">
+                        <i class="fas fa-user-graduate role-icon"></i>
+                        <h4>Estudiantes</h4>
+                        <p class="small text-muted">Gestione su proyecto y suba entregables.</p>
+                        <a href="login_usuarios.jsp?rol=estudiantes" class="btn btn-access">Ingresar</a>
+                    </div>
+                </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                <div class="col-md-3 mb-4">
+                    <div class="role-card">
+                        <i class="fas fa-user-tie role-icon"></i>
+                        <h4>Coordinadores</h4>
+                        <p class="small text-muted">Supervise procesos y asigne evaluadores.</p>
+                        <a href="login_usuarios.jsp?rol=coordinadores" class="btn btn-access">Ingresar</a>
+                    </div>
+                </div>
+
+                <div class="col-md-3 mb-4">
+                    <div class="role-card">
+                        <i class="fas fa-chalkboard-teacher role-icon"></i>
+                        <h4>Evaluadores</h4>
+                        <p class="small text-muted">Califique y de feedback a los proyectos.</p>
+                        <a href="login_usuarios.jsp?rol=evaluadores" class="btn btn-access">Ingresar</a>
+                    </div>
+                </div>
+
+                <div class="col-md-3 mb-4">
+                    <div class="role-card">
+                        <i class="fas fa-user-edit role-icon"></i>
+                        <h4>Directores</h4>
+                        <p class="small text-muted">Acompañamiento y aval de propuestas.</p>
+                        <a href="login_usuarios.jsp?rol=directores" class="btn btn-access">Ingresar</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <a href="admin_login.jsp" class="admin-link">
+        <i class="fas fa-lock mr-1"></i> Acceso Administrativo
+    </a>
+
 </body>
 </html>
