@@ -2,7 +2,7 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/sql" prefix="sql" %>
 
-<%-- 1. Conexión --%>
+<%-- 1. Conexión (Usa la ruta directa porque está en la raíz) --%>
 <%@ include file="WEB-INF/conexion.jspf" %>
 
 <sql:setDataSource var="ds" 
@@ -11,10 +11,10 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 2. Detectar qué rol intenta entrar (por URL: login_usuarios.jsp?rol=estudiantes) --%>
+<%-- 2. Identificar Rol --%>
 <c:set var="rol" value="${not empty param.rol ? param.rol : 'estudiantes'}" />
 
-<%-- 3. Lógica de Validación --%>
+<%-- 3. Validación de Login --%>
 <c:if test="${pageContext.request.method == 'POST'}">
     <sql:query dataSource="${ds}" var="res">
         SELECT * FROM ${rol} WHERE gmail = ? AND password = ?
@@ -24,10 +24,19 @@
 
     <c:choose>
         <c:when test="${res.rowCount > 0}">
-            <%-- Guardamos el usuario en sesión (ej: sessionScope.usuarioLogueado) --%>
+            <%-- Guardamos datos en sesión --%>
             <c:set var="usuarioLogueado" value="${res.rows[0]}" scope="session" />
             <c:set var="tipoUsuario" value="${rol}" scope="session" />
-            <c:redirect url="dashboard_${rol}.jsp" />
+            
+            <%-- REDIRECCIÓN ACTUALIZADA A LA CARPETA DASHBOARDS --%>
+            <c:choose>
+                <c:when test="${rol == 'estudiantes'}">
+                    <c:redirect url="dashboards/dashboard_estudiante.jsp" />
+                </c:when>
+                <c:otherwise>
+                    <c:redirect url="dashboards/dashboard_${rol}.jsp" />
+                </c:otherwise>
+            </c:choose>
         </c:when>
         <c:otherwise>
             <c:set var="error" value="true" />
@@ -58,16 +67,16 @@
     <a href="index.jsp" class="text-muted small d-block mb-3 text-decoration-none">
         <i class="fas fa-arrow-left"></i> Volver al inicio
     </a>
-    <h3 class="mb-4">Login <span class="text-warning">${rol}</span></h3>
+    <h3 class="mb-4">Acceso <span class="text-warning">${rol}</span></h3>
     
     <c:if test="${error}">
-        <div class="alert alert-danger small py-2">Correo o contraseña incorrectos</div>
+        <div class="alert alert-danger small py-2">Credenciales incorrectas</div>
     </c:if>
 
     <form method="POST">
         <div class="form-group text-left">
-            <label class="small text-muted">CORREO GMAIL</label>
-            <input type="email" name="txtGmail" class="form-control" placeholder="ejemplo@gmail.com" required>
+            <label class="small text-muted">GMAIL INSTITUCIONAL</label>
+            <input type="email" name="txtGmail" class="form-control" placeholder="usuario@gmail.com" required>
         </div>
         <div class="form-group text-left">
             <label class="small text-muted">CONTRASEÑA</label>

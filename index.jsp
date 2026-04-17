@@ -9,59 +9,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        body { 
-            background: #0f0f0f; 
-            color: white; 
-            font-family: 'Inter', sans-serif; 
-            min-height: 100vh;
-        }
-        .hero-section {
-            padding: 100px 0;
-            background: radial-gradient(circle at top right, #1a1c1e, #000000);
-        }
+        body { background: #0f0f0f; color: white; font-family: 'Inter', sans-serif; min-height: 100vh; }
+        .hero-section { padding: 100px 0; background: radial-gradient(circle at top right, #1a1c1e, #000000); }
         .role-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 30px;
-            transition: 0.4s;
-            text-align: center;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px; padding: 30px; transition: 0.4s; text-align: center; height: 100%;
+            display: flex; flex-direction: column; justify-content: center;
         }
-        .role-card:hover {
-            transform: translateY(-10px);
-            background: rgba(255, 255, 255, 0.05);
-            border-color: #ffc107;
-        }
-        .role-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: #ffc107;
-        }
+        .role-card:hover { transform: translateY(-10px); border-color: #ffc107; background: rgba(255, 255, 255, 0.05); }
+        .role-icon { font-size: 3rem; margin-bottom: 20px; color: #ffc107; }
         .btn-access {
-            background: transparent;
-            border: 1px solid #ffc107;
-            color: #ffc107;
-            font-weight: 600;
-            border-radius: 10px;
-            margin-top: 15px;
-            transition: 0.3s;
+            background: transparent; border: 1px solid #ffc107; color: #ffc107;
+            font-weight: 600; border-radius: 10px; margin-top: 15px; transition: 0.3s;
         }
-        .btn-access:hover {
-            background: #ffc107;
-            color: #000;
-        }
-        .admin-link {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            color: rgba(255,255,255,0.3);
-            font-size: 0.8rem;
-            text-decoration: none;
-        }
+        .btn-access:hover { background: #ffc107; color: #000; text-decoration: none; }
+        .admin-link { position: fixed; bottom: 20px; right: 20px; color: rgba(255,255,255,0.3); font-size: 0.8rem; text-decoration: none; }
         .admin-link:hover { color: #ffc107; }
     </style>
 </head>
