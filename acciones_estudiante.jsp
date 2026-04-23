@@ -1,12 +1,6 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/sql" prefix="sql" %>
 <%@ include file="WEB-INF/conexion.jspf" %>
-
-<%-- 
-    IMPORTANTE: Asegúrate de que en la base de datos la columna 'estado' 
-    sea VARCHAR(50) para evitar el error "Data truncated".
---%>
 
 <sql:setDataSource var="ds" 
     driver="${applicationScope.dbDriver}" 
@@ -14,21 +8,38 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. Insertar la solicitud en la tabla 'solicitudes_proyectos' --%>
-<%-- Usamos los nombres de columnas verificados: proyecto_id, estudiante_id, archivo_pago, estado_solicitud --%>
-<sql:update dataSource="${ds}">
-    INSERT INTO solicitudes_proyectos (proyecto_id, estudiante_id, archivo_pago, estado_solicitud) 
-    VALUES (?, ?, 'pago_derechos.pdf', 'Pendiente');
-    <sql:param value="${param.id_proyecto}" />
-    <sql:param value="${sessionScope.usuarioLogueado.id}" />
-</sql:update>
+<c:if test="${param.accion == 'enviar_pago'}">
+    <%-- 1. VALIDACIÓN: Contar si el estudiante ya tiene un proyecto --%>
+    <sql:query dataSource="${ds}" var="verificarAsignacion">
+        SELECT COUNT(*) as total FROM proyectos WHERE estudiante_id = ?
+        <sql:param value="${sessionScope.usuarioLogueado.id}" />
+    </sql:query>
 
-<%-- 2. Cambiar el estado del proyecto a 'Proceso' --%>
-<%-- Esto evitará que otros estudiantes lo vean mientras el coordinador aprueba --%>
-<sql:update dataSource="${ds}">
-    UPDATE proyectos SET estado = 'Proceso' WHERE id = ?;
-    <sql:param value="${param.id_proyecto}" />
-</sql:update>
+    <c:set var="cantidad" value="${verificarAsignacion.rows[0].total}" />
 
-<%-- Redirección de vuelta al dashboard para ver los cambios --%>
-<c:redirect url="dashboards/dashboard_estudiante.jsp" />
+    <c:choose>
+        <%-- Si ya tiene 1 o más proyectos, redirigimos con un mensaje de error opcional --%>
+        <c:when test="${cantidad > 0}">
+            <%-- Aquí podrías pasar un parámetro de error si tu dashboard lo maneja --%>
+            <c:redirect url="dashboards/dashboard_estudiante.jsp?error=ya_tienes_proyecto" />
+        </c:when>
+        
+        <%-- Si no tiene proyectos (cantidad == 0), procedemos con la asignación --%>
+        <c:otherwise>
+            <sql:update dataSource="${ds}">
+                UPDATE proyectos 
+                SET estado = 'Asignado', 
+                    estudiante_id = ? 
+                WHERE id = ?
+                <sql:param value="${sessionScope.usuarioLogueado.id}" />
+                <sql:param value="${param.id_proyecto}" />
+            </sql:update>
+            <c:redirect url="dashboards/dashboard_estudiante.jsp?success=proyecto_asignado" />
+        </c:otherwise>
+    </c:choose>
+</c:if>
+
+<%-- Redirección por defecto si no entra al IF --%>
+<c:if test="${empty param.accion}">
+    <c:redirect url="dashboards/dashboard_estudiante.jsp" />
+</c:if>
