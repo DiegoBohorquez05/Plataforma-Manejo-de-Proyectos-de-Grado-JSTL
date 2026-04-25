@@ -1,3 +1,4 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/sql" prefix="sql" %>
 <%@ include file="WEB-INF/conexion.jspf" %>
@@ -8,38 +9,23 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<c:if test="${param.accion == 'enviar_pago'}">
-    <%-- 1. VALIDACIÓN: Contar si el estudiante ya tiene un proyecto --%>
-    <sql:query dataSource="${ds}" var="verificarAsignacion">
-        SELECT COUNT(*) as total FROM proyectos WHERE estudiante_id = ?
-        <sql:param value="${sessionScope.usuarioLogueado.id}" />
-    </sql:query>
-
-    <c:set var="cantidad" value="${verificarAsignacion.rows[0].total}" />
-
-    <c:choose>
-        <%-- Si ya tiene 1 o más proyectos, redirigimos con un mensaje de error opcional --%>
-        <c:when test="${cantidad > 0}">
-            <%-- Aquí podrías pasar un parámetro de error si tu dashboard lo maneja --%>
-            <c:redirect url="dashboards/dashboard_estudiante.jsp?error=ya_tienes_proyecto" />
-        </c:when>
+<c:choose>
+    <%-- ACCIÓN: ENVIAR SOLICITUD CON LINK DE DRIVE --%>
+    <c:when test="${param.accion == 'enviar_solicitud'}">
+        <sql:update dataSource="${ds}">
+            INSERT INTO solicitudes_proyectos (estudiante_id, proyecto_id, link_drive, estado)
+            VALUES (?, ?, ?, 'Pendiente')
+            <sql:param value="${sessionScope.usuarioLogueado.id}" />
+            <sql:param value="${param.id_proyecto}" />
+            <sql:param value="${param.linkDrive}" />
+        </sql:update>
         
-        <%-- Si no tiene proyectos (cantidad == 0), procedemos con la asignación --%>
-        <c:otherwise>
-            <sql:update dataSource="${ds}">
-                UPDATE proyectos 
-                SET estado = 'Asignado', 
-                    estudiante_id = ? 
-                WHERE id = ?
-                <sql:param value="${sessionScope.usuarioLogueado.id}" />
-                <sql:param value="${param.id_proyecto}" />
-            </sql:update>
-            <c:redirect url="dashboards/dashboard_estudiante.jsp?success=proyecto_asignado" />
-        </c:otherwise>
-    </c:choose>
-</c:if>
+        <%-- REDIRECCIÓN: Para que no se quede en blanco --%>
+        <c:redirect url="dashboards/dashboard_estudiante.jsp?msj=solicitud_enviada" />
+    </c:when>
 
-<%-- Redirección por defecto si no entra al IF --%>
-<c:if test="${empty param.accion}">
-    <c:redirect url="dashboards/dashboard_estudiante.jsp" />
-</c:if>
+    <%-- REDIRECCIÓN POR DEFECTO SI ALGO SALE MAL --%>
+    <c:otherwise>
+        <c:redirect url="dashboards/dashboard_estudiante.jsp" />
+    </c:otherwise>
+</c:choose>
