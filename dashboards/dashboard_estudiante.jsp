@@ -9,7 +9,7 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. CONSULTA: Trae el proyecto donde el usuario sea dueño o compañero, incluyendo todos los nombres --%>
+<%-- 1. CONSULTA: Trae el proyecto asignado --%>
 <sql:query dataSource="${ds}" var="proyectoAsignado">
     SELECT 
         p.*, 
@@ -31,7 +31,17 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- 2. CONSULTA: Solicitudes pendientes enviadas por el usuario --%>
+<%-- NUEVA CONSULTA: Historial de documentos del proyecto asignado --%>
+<c:if test="${proyectoAsignado.rowCount > 0}">
+    <sql:query dataSource="${ds}" var="historialDocs">
+        SELECT * FROM documentos_proyecto 
+        WHERE proyecto_id = ? 
+        ORDER BY fecha_subida DESC
+        <sql:param value="${proyectoAsignado.rows[0].id}" />
+    </sql:query>
+</c:if>
+
+<%-- 2. CONSULTA: Solicitudes pendientes --%>
 <sql:query dataSource="${ds}" var="miSolicitud">
     SELECT s.*, p.nombre_proyecto 
     FROM solicitudes_proyectos s
@@ -40,14 +50,14 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- 3. CONSULTA: Proyectos que nadie ha tomado --%>
+<%-- 3. CONSULTA: Proyectos disponibles --%>
 <sql:query dataSource="${ds}" var="proyectosDisponibles">
     SELECT * FROM proyectos 
     WHERE estado = 'Disponible' 
     ORDER BY id DESC
 </sql:query>
 
-<%-- 4. CONSULTA: Lista para el formulario de compañeros --%>
+<%-- 4. CONSULTA: Lista de estudiantes --%>
 <sql:query dataSource="${ds}" var="listaEstudiantes">
     SELECT id, nombre_estudiante FROM estudiantes WHERE id != ?
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
@@ -71,6 +81,11 @@
         .btn-tomar { background-color: var(--accent); color: #000; font-weight: 700; border-radius: 8px; border: none; padding: 10px; transition: 0.3s; }
         .input-drive { background-color: #0d0d0d !important; border: 1px solid #444 !important; color: white !important; font-size: 0.8rem; }
         .info-label { font-size: 0.65rem; color: var(--accent); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px; }
+        
+        /* Estilos adicionales para la tabla de documentos */
+        .table-docs { background-color: #111; border-radius: 8px; overflow: hidden; }
+        .table-docs th { border-top: none; color: var(--accent); font-size: 0.7rem; text-transform: uppercase; }
+        .table-docs td { vertical-align: middle; border-color: #222; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -112,29 +127,77 @@
                                         <div class="text-white small">
                                             <i class="fas fa-users mr-2 text-muted"></i>
                                             <c:set var="hayContenido" value="false" />
-                                            
-                                            <%-- Mostrar a todos los integrantes sin filtros --%>
                                             <c:if test="${not empty miP.nombre_principal}">
                                                 ${miP.nombre_principal}
                                                 <c:set var="hayContenido" value="true" />
                                             </c:if>
-                                            
                                             <c:if test="${not empty miP.nombre_comp1}">
                                                 ${hayContenido ? ', ' : ''} ${miP.nombre_comp1}
                                                 <c:set var="hayContenido" value="true" />
                                             </c:if>
-                                            
                                             <c:if test="${not empty miP.nombre_comp2}">
                                                 ${hayContenido ? ', ' : ''} ${miP.nombre_comp2}
                                                 <c:set var="hayContenido" value="true" />
                                             </c:if>
-
                                             <c:if test="${!hayContenido}">
                                                 <span class="text-muted font-italic">SIN COMPAÑEROS</span>
                                             </c:if>
                                         </div>
                                     </div>
                                 </div>
+
+                                <%-- SECCIÓN NUEVA: ALIMENTACIÓN DEL PROYECTO --%>
+                                <div class="mt-5 pt-4" style="border-top: 1px solid #333;">
+                                    <h6 class="text-white font-weight-bold mb-3 small"><i class="fas fa-folder-plus mr-2 text-warning"></i> ENTREGAS Y DOCUMENTACIÓN</h6>
+                                    
+                                    <form action="../acciones_estudiante.jsp" method="POST" class="row no-gutters mb-4">
+                                        <input type="hidden" name="accion" value="subir_documento">
+                                        <input type="hidden" name="id_proyecto" value="${miP.id}">
+                                        
+                                        <div class="col-md-4 pr-2">
+                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre del archivo/avance" required>
+                                        </div>
+                                        <div class="col-md-6 pr-2">
+                                            <input type="url" name="txtLinkDrive" class="form-control input-drive" placeholder="Link de Google Drive" required>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="submit" class="btn btn-warning btn-block btn-sm font-weight-bold" style="height: 35px;">SUBIR</button>
+                                        </div>
+                                    </form>
+
+                                    <%-- HISTORIAL DE DOCUMENTOS --%>
+                                    <div class="table-responsive">
+                                        <table class="table table-dark table-docs mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Fecha</th>
+                                                    <th>Documento</th>
+                                                    <th class="text-right">Acción</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <c:forEach var="doc" items="${historialDocs.rows}">
+                                                    <tr>
+                                                        <td class="text-muted small">${doc.fecha_subida}</td>
+                                                        <td class="font-weight-bold">${doc.nombre_documento}</td>
+                                                        <td class="text-right">
+                                                            <a href="${doc.link_drive}" target="_blank" class="text-warning small text-decoration-none">
+                                                                <i class="fas fa-external-link-alt mr-1"></i> Abrir Drive
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                </c:forEach>
+                                                <c:if test="${historialDocs.rowCount == 0}">
+                                                    <tr>
+                                                        <td colspan="3" class="text-center text-muted small py-3">No hay documentos cargados en el historial.</td>
+                                                    </tr>
+                                                </c:if>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <%-- FIN SECCIÓN NUEVA --%>
+
                             </div>
                             <div class="text-right ml-4">
                                 <span class="badge badge-success px-3 py-2">ASIGNADO OFICIALMENTE</span>

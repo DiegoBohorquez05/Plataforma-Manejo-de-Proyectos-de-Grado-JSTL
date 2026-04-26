@@ -10,60 +10,48 @@
     password="${applicationScope.dbPass}" />
 
 <c:choose>
-    <%-- ACCIÓN: ENVIAR SOLICITUD DE PROYECTO --%>
+    <%-- ========================================================
+         ACCIÓN 1: ENVIAR SOLICITUD DE PROYECTO (La que ya tenías)
+         ======================================================== --%>
     <c:when test="${param.accion == 'enviar_solicitud'}">
-        <c:catch var="error">
-            <sql:update dataSource="${ds}">
-                INSERT INTO solicitudes_proyectos (
-                    estudiante_id, 
-                    proyecto_id, 
-                    link_drive, 
-                    compañero1_id, 
-                    compañero2_id, 
-                    estado
-                ) VALUES (?, ?, ?, ?, ?, 'Pendiente')
-                
-                <sql:param value="${sessionScope.usuarioLogueado.id}" />
-                <sql:param value="${param.id_proyecto}" />
-                <sql:param value="${param.txtLink}" />
-                
-                <%-- Manejo de nulos para compañeros opcionales --%>
-                <c:choose>
-                    <c:when test="${not empty param.id_companero1}">
-                        <sql:param value="${param.id_companero1}" />
-                    </c:when>
-                    <c:otherwise><sql:param value="${null}" /></c:otherwise>
-                </c:choose>
-                
-                <c:choose>
-                    <c:when test="${not empty param.id_companero2}">
-                        <sql:param value="${param.id_companero2}" />
-                    </c:when>
-                    <c:otherwise><sql:param value="${null}" /></c:otherwise>
-                </c:choose>
-            </sql:update>
-            
-            <%-- Opcional: Cambiar estado del proyecto a 'En Revisión' si lo deseas --%>
-            <%-- 
-            <sql:update dataSource="${ds}">
-                UPDATE proyectos SET estado = 'Pendiente' WHERE id = ?
-                <sql:param value="${param.id_proyecto}" />
-            </sql:update> 
-            --%>
-            
-            <c:redirect url="dashboards/dashboard_estudiante.jsp?msg=solicitud_enviada" />
-        </c:catch>
-        
-        <c:if test="${not empty error}">
-            <div class="alert alert-danger">
-                Error al procesar la solicitud: ${error.message}
-                <a href="dashboards/dashboard_estudiante.jsp">Volver</a>
-            </div>
-        </c:if>
+        <%-- Insertar la solicitud en la tabla de trámites --%>
+        <sql:update dataSource="${ds}">
+            INSERT INTO solicitudes_proyectos (proyecto_id, estudiante_id, compañero1_id, compañero2_id, link_propuesta, estado)
+            VALUES (?, ?, ?, ?, ?, 'Pendiente')
+            <sql:param value="${param.id_proyecto}" />
+            <sql:param value="${sessionScope.usuarioLogueado.id}" />
+            <sql:param value="${not empty param.id_companero1 ? param.id_companero1 : null}" />
+            <sql:param value="${not empty param.id_companero2 ? param.id_companero2 : null}" />
+            <sql:param value="${param.txtLink}" />
+        </sql:update>
+
+        <%-- Opcional: Marcar el proyecto como 'En Proceso' para que no lo vean otros --%>
+        <sql:update dataSource="${ds}">
+            UPDATE proyectos SET estado = 'En Proceso' WHERE id = ?
+            <sql:param value="${param.id_proyecto}" />
+        </sql:update>
+
+        <c:redirect url="dashboards/dashboard_estudiante.jsp" />
     </c:when>
 
-    <%-- OTRAS ACCIONES (EJ. SUBIR ENTREGABLES EN EL FUTURO) --%>
-    <c:otherwise>
+    <%-- ========================================================
+         ACCIÓN 2: SUBIR DOCUMENTO / AVANCE (La nueva funcionalidad)
+         ======================================================== --%>
+    <c:when test="${param.accion == 'subir_documento'}">
+        <sql:update dataSource="${ds}">
+            INSERT INTO documentos_proyecto (proyecto_id, link_drive, nombre_documento)
+            VALUES (?, ?, ?)
+            <sql:param value="${param.id_proyecto}" />
+            <sql:param value="${param.txtLinkDrive}" />
+            <sql:param value="${param.txtNombreDoc}" />
+        </sql:update>
+        
+        <%-- Volvemos al dashboard para ver el historial actualizado --%>
         <c:redirect url="dashboards/dashboard_estudiante.jsp" />
+    </c:when>
+
+    <%-- CASO POR DEFECTO: Si alguien entra aquí sin acción, mandarlo al index --%>
+    <c:otherwise>
+        <c:redirect url="index.jsp" />
     </c:otherwise>
 </c:choose>
