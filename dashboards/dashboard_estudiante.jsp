@@ -9,15 +9,21 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. CONSULTA: Verificar si el estudiante ya tiene un proyecto aprobado --%>
+<%-- 1. CONSULTA: Proyecto asignado con nombres de Director y Evaluador actualizados --%>
 <sql:query dataSource="${ds}" var="proyectoAsignado">
-    SELECT * FROM proyectos 
-    WHERE estudiante_id = ? 
+    SELECT 
+        p.*, 
+        d.nombre_director, 
+        ev.nombre_evaluador
+    FROM proyectos p
+    LEFT JOIN directores d ON p.director_id = d.id
+    LEFT JOIN evaluadores ev ON p.evaluador_id = ev.id
+    WHERE p.estudiante_id = ? 
     LIMIT 1
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- 2. CONSULTA: Ver estado de la solicitud pendiente (si envió una) --%>
+<%-- 2. CONSULTA: Solicitudes pendientes --%>
 <sql:query dataSource="${ds}" var="miSolicitud">
     SELECT s.*, p.nombre_proyecto 
     FROM solicitudes_proyectos s
@@ -26,7 +32,7 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- 3. CONSULTA: Proyectos disponibles para solicitar --%>
+<%-- 3. CONSULTA: Proyectos disponibles --%>
 <sql:query dataSource="${ds}" var="proyectosDisponibles">
     SELECT * FROM proyectos 
     WHERE estado = 'Disponible' 
@@ -52,6 +58,7 @@
         .btn-tomar:hover { background-color: #e5ad06; box-shadow: 0 0 15px rgba(255, 193, 7, 0.4); }
         .input-drive { background-color: #0d0d0d !important; border: 1px solid #444 !important; color: white !important; font-size: 0.8rem; }
         .empty-state { background-color: var(--card-bg); border: 1px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center; color: #666; }
+        .info-label { font-size: 0.65rem; color: var(--accent); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -59,7 +66,7 @@
 <nav class="navbar-custom d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0 font-weight-bold">Panel <span class="text-warning">Estudiante</span></h4>
     <div class="d-flex align-items-center">
-        <%-- Usando el nuevo nombre de columna: nombre_estudiante --%>
+        <%-- Cambio a nombre_estudiante --%>
         <span class="text-muted small mr-3">Bienvenido, ${sessionScope.usuarioLogueado.nombre_estudiante}</span>
         <a href="../logout.jsp" class="btn btn-outline-danger btn-sm px-4">Cerrar Sesión</a>
     </div>
@@ -75,12 +82,29 @@
                     <c:forEach var="miP" items="${proyectoAsignado.rows}">
                         <div class="card-proyecto" style="border-left: 5px solid #28a745;">
                             <div class="d-flex justify-content-between">
-                                <div>
+                                <div class="flex-grow-1">
                                     <h4 class="text-white mb-1">${miP.nombre_proyecto}</h4>
                                     <span class="badge-facultad">${miP.facultad}</span>
                                     <p class="text-muted mt-3">${miP.descripcion}</p>
+                                    
+                                    <div class="mt-4 d-flex">
+                                        <div class="mr-5">
+                                            <label class="info-label">DIRECTOR</label>
+                                            <span class="text-white small">
+                                                <i class="fas fa-user-tie mr-2 text-muted"></i>
+                                                ${not empty miP.nombre_director ? miP.nombre_director : 'Pendiente'}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <label class="info-label">EVALUADOR</label>
+                                            <span class="text-white small">
+                                                <i class="fas fa-search mr-2 text-muted"></i>
+                                                ${not empty miP.nombre_evaluador ? miP.nombre_evaluador : 'Pendiente'}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="text-right">
+                                <div class="text-right ml-4">
                                     <span class="badge badge-success px-3 py-2">ASIGNADO OFICIALMENTE</span>
                                     <h5 class="text-warning mt-3">${miP.codigo_proyecto}</h5>
                                 </div>
@@ -104,7 +128,7 @@
                 <div class="card-proyecto" style="border-left: 5px solid var(--accent); opacity: 0.85;">
                     <div class="d-flex justify-content-between align-items-center">
                         <p class="mb-0">Has enviado una solicitud para: <strong>${miSolicitud.rows[0].nombre_proyecto}</strong></p>
-                        <span class="badge badge-warning text-dark px-3 py-2 font-weight-bold">PENDIENTE DE APROBACIÓN</span>
+                        <span class="badge badge-warning text-dark px-3 py-2 font-weight-bold">PENDIENTE</span>
                     </div>
                 </div>
             </div>
@@ -122,7 +146,6 @@
                     
                     <hr style="border-color: #333;">
                     
-                    <%-- Solo permite solicitar si no tiene proyectos ni solicitudes activas --%>
                     <c:choose>
                         <c:when test="${proyectoAsignado.rowCount == 0 && miSolicitud.rowCount == 0}">
                             <form action="../acciones_estudiante.jsp" method="POST">
@@ -130,16 +153,14 @@
                                 <input type="hidden" name="id_proyecto" value="${p.id}">
                                 
                                 <div class="form-group mb-2">
-                                    <label class="small text-muted mb-1">LINK GOOGLE DRIVE (ANTEPROYECTO)</label>
+                                    <label class="small text-muted mb-1">LINK GOOGLE DRIVE</label>
                                     <input type="url" name="linkDrive" class="form-control input-drive" 
                                            placeholder="https://drive.google.com/..." required>
                                 </div>
                                 
                                 <div class="d-flex justify-content-between align-items-center mt-3">
                                     <span class="text-warning font-weight-bold">${p.codigo_proyecto}</span>
-                                    <button type="submit" class="btn btn-tomar px-4">
-                                        <i class="fas fa-paper-plane mr-1"></i> SOLICITAR
-                                    </button>
+                                    <button type="submit" class="btn btn-tomar px-4">SOLICITAR</button>
                                 </div>
                             </form>
                         </c:when>
