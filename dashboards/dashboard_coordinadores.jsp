@@ -148,7 +148,7 @@
                                     </td>
                                     <td>
                                         <div class="mb-2">
-                                            <i class="fas fa-user-graduate mr-2 small text-muted"></i>
+                                            <i class="fas mr-2 small text-muted"></i>
                                             <c:choose>
                                                 <c:when test="${not empty p.nombre_estudiante}">
                                                 </c:when>
