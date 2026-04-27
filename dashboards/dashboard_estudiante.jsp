@@ -31,12 +31,23 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- NUEVA CONSULTA: Historial de documentos del proyecto asignado --%>
+<%-- NUEVA CONSULTA: Historial detallado con revisiones del Director --%>
 <c:if test="${proyectoAsignado.rowCount > 0}">
     <sql:query dataSource="${ds}" var="historialDocs">
-        SELECT * FROM documentos_proyecto 
-        WHERE proyecto_id = ? 
-        ORDER BY fecha_subida DESC
+        SELECT 
+            dp.id AS doc_id,
+            dp.nombre_documento,
+            dp.link_drive,
+            dp.fecha_subida,
+            rd.estado,
+            rd.comentario,
+            d.nombre_director
+        FROM documentos_proyecto dp
+        LEFT JOIN revisiones_director rd ON dp.id = rd.documento_id
+        JOIN proyectos p ON dp.proyecto_id = p.id
+        LEFT JOIN directores d ON p.director_id = d.id
+        WHERE dp.proyecto_id = ? 
+        ORDER BY dp.fecha_subida DESC
         <sql:param value="${proyectoAsignado.rows[0].id}" />
     </sql:query>
 </c:if>
@@ -82,7 +93,6 @@
         .input-drive { background-color: #0d0d0d !important; border: 1px solid #444 !important; color: white !important; font-size: 0.8rem; }
         .info-label { font-size: 0.65rem; color: var(--accent); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px; }
         
-        /* Estilos adicionales para la tabla de documentos */
         .table-docs { background-color: #111; border-radius: 8px; overflow: hidden; }
         .table-docs th { border-top: none; color: var(--accent); font-size: 0.7rem; text-transform: uppercase; }
         .table-docs td { vertical-align: middle; border-color: #222; font-size: 0.85rem; }
@@ -146,7 +156,7 @@
                                     </div>
                                 </div>
 
-                                <%-- SECCIÓN NUEVA: ALIMENTACIÓN DEL PROYECTO --%>
+                                <%-- SECCIÓN: ENTREGAS Y DOCUMENTACIÓN --%>
                                 <div class="mt-5 pt-4" style="border-top: 1px solid #333;">
                                     <h6 class="text-white font-weight-bold mb-3 small"><i class="fas fa-folder-plus mr-2 text-warning"></i> ENTREGAS Y DOCUMENTACIÓN</h6>
                                     
@@ -155,7 +165,7 @@
                                         <input type="hidden" name="id_proyecto" value="${miP.id}">
                                         
                                         <div class="col-md-4 pr-2">
-                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre del archivo/avance" required>
+                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre de la versión/avance" required>
                                         </div>
                                         <div class="col-md-6 pr-2">
                                             <input type="url" name="txtLinkDrive" class="form-control input-drive" placeholder="Link de Google Drive" required>
@@ -165,13 +175,16 @@
                                         </div>
                                     </form>
 
-                                    <%-- HISTORIAL DE DOCUMENTOS --%>
+                                    <%-- TABLA DE HISTORIAL CON CALIFICACIÓN Y COMENTARIOS --%>
                                     <div class="table-responsive">
                                         <table class="table table-dark table-docs mb-0">
                                             <thead>
                                                 <tr>
                                                     <th>Fecha</th>
                                                     <th>Documento</th>
+                                                    <th>Calificación</th>
+                                                    <th>Director</th>
+                                                    <th>Retroalimentación</th>
                                                     <th class="text-right">Acción</th>
                                                 </tr>
                                             </thead>
@@ -180,23 +193,45 @@
                                                     <tr>
                                                         <td class="text-muted small">${doc.fecha_subida}</td>
                                                         <td class="font-weight-bold">${doc.nombre_documento}</td>
+                                                        <td>
+                                                            <c:choose>
+                                                                <c:when test="${doc.estado == 'Aprobado'}">
+                                                                    <span class="badge badge-success">Aprobado</span>
+                                                                </c:when>
+                                                                <c:when test="${doc.estado == 'En Revisión'}">
+                                                                    <span class="badge badge-warning">En Revisión</span>
+                                                                </c:when>
+                                                                <c:when test="${doc.estado == 'Reprobado'}">
+                                                                    <span class="badge badge-danger">Reprobado</span>
+                                                                </c:when>
+                                                                <c:otherwise>
+                                                                    <span class="badge badge-secondary">Pendiente</span>
+                                                                </c:otherwise>
+                                                            </c:choose>
+                                                        </td>
+                                                        <td class="small">
+                                                            ${not empty doc.nombre_director ? doc.nombre_director : '---'}<br>
+                                                            <small class="text-muted">Cargo: Director</small>
+                                                        </td>
+                                                        <td class="small text-info italic">
+                                                            ${not empty doc.comentario ? doc.comentario : 'Esperando revisión...'}
+                                                        </td>
                                                         <td class="text-right">
                                                             <a href="${doc.link_drive}" target="_blank" class="text-warning small text-decoration-none">
-                                                                <i class="fas fa-external-link-alt mr-1"></i> Abrir Drive
+                                                                <i class="fas fa-external-link-alt"></i> Ver
                                                             </a>
                                                         </td>
                                                     </tr>
                                                 </c:forEach>
                                                 <c:if test="${historialDocs.rowCount == 0}">
                                                     <tr>
-                                                        <td colspan="3" class="text-center text-muted small py-3">No hay documentos cargados en el historial.</td>
+                                                        <td colspan="6" class="text-center text-muted small py-3">No hay documentos en el historial.</td>
                                                     </tr>
                                                 </c:if>
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                                <%-- FIN SECCIÓN NUEVA --%>
 
                             </div>
                             <div class="text-right ml-4">
@@ -223,7 +258,6 @@
                     <h5 class="text-white font-weight-bold mb-2">${p.nombre_proyecto}</h5>
                     <span class="badge-facultad">${p.facultad}</span>
                     <p class="text-muted small mt-3" style="height: 50px; overflow: hidden;">${p.descripcion}</p>
-                    
                     <hr style="border-color: #333;">
                     
                     <c:choose>
@@ -231,12 +265,10 @@
                             <form action="../acciones_estudiante.jsp" method="POST">
                                 <input type="hidden" name="accion" value="enviar_solicitud">
                                 <input type="hidden" name="id_proyecto" value="${p.id}">
-                                
                                 <div class="form-group mb-2">
                                     <label class="small text-muted mb-1">LINK GOOGLE DRIVE</label>
                                     <input type="url" name="txtLink" class="form-control input-drive" required>
                                 </div>
-                                
                                 <div class="row mb-3">
                                     <div class="col-6">
                                         <label class="small text-muted mb-1">COMPAÑERO 1</label>
@@ -257,7 +289,6 @@
                                         </select>
                                     </div>
                                 </div>
-                                
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="text-warning font-weight-bold">${p.codigo_proyecto}</span>
                                     <button type="submit" class="btn btn-tomar px-4">SOLICITAR</button>
