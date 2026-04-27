@@ -9,7 +9,7 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. CONSULTA: Trae el proyecto asignado --%>
+<%-- 1. CONSULTA: Trae el proyecto asignado (Ajustada para leer estados directos) --%>
 <sql:query dataSource="${ds}" var="proyectoAsignado">
     SELECT 
         p.*, 
@@ -31,7 +31,7 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- NUEVA CONSULTA: Historial detallado con revisiones del Director --%>
+<%-- CONSULTA CORREGIDA: Historial detallado leyendo directamente de documentos_proyecto --%>
 <c:if test="${proyectoAsignado.rowCount > 0}">
     <sql:query dataSource="${ds}" var="historialDocs">
         SELECT 
@@ -39,11 +39,10 @@
             dp.nombre_documento,
             dp.link_drive,
             dp.fecha_subida,
-            rd.estado,
-            rd.comentario,
+            dp.estado_director,
+            dp.estado_evaluador,
             d.nombre_director
         FROM documentos_proyecto dp
-        LEFT JOIN revisiones_director rd ON dp.id = rd.documento_id
         JOIN proyectos p ON dp.proyecto_id = p.id
         LEFT JOIN directores d ON p.director_id = d.id
         WHERE dp.proyecto_id = ? 
@@ -149,21 +148,16 @@
                                                 ${hayContenido ? ', ' : ''} ${miP.nombre_comp2}
                                                 <c:set var="hayContenido" value="true" />
                                             </c:if>
-                                            <c:if test="${!hayContenido}">
-                                                <span class="text-muted font-italic">SIN COMPAÑEROS</span>
-                                            </c:if>
                                         </div>
                                     </div>
                                 </div>
 
-                                <%-- SECCIÓN: ENTREGAS Y DOCUMENTACIÓN --%>
                                 <div class="mt-5 pt-4" style="border-top: 1px solid #333;">
                                     <h6 class="text-white font-weight-bold mb-3 small"><i class="fas fa-folder-plus mr-2 text-warning"></i> ENTREGAS Y DOCUMENTACIÓN</h6>
                                     
                                     <form action="../acciones_estudiante.jsp" method="POST" class="row no-gutters mb-4">
                                         <input type="hidden" name="accion" value="subir_documento">
                                         <input type="hidden" name="id_proyecto" value="${miP.id}">
-                                        
                                         <div class="col-md-4 pr-2">
                                             <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre de la versión/avance" required>
                                         </div>
@@ -175,16 +169,14 @@
                                         </div>
                                     </form>
 
-                                    <%-- TABLA DE HISTORIAL CON CALIFICACIÓN Y COMENTARIOS --%>
                                     <div class="table-responsive">
                                         <table class="table table-dark table-docs mb-0">
                                             <thead>
                                                 <tr>
                                                     <th>Fecha</th>
                                                     <th>Documento</th>
-                                                    <th>Calificación</th>
-                                                    <th>Director</th>
-                                                    <th>Retroalimentación</th>
+                                                    <th>Estado Director</th>
+                                                    <th>Evaluador</th>
                                                     <th class="text-right">Acción</th>
                                                 </tr>
                                             </thead>
@@ -194,45 +186,22 @@
                                                         <td class="text-muted small">${doc.fecha_subida}</td>
                                                         <td class="font-weight-bold">${doc.nombre_documento}</td>
                                                         <td>
-                                                            <c:choose>
-                                                                <c:when test="${doc.estado == 'Aprobado'}">
-                                                                    <span class="badge badge-success">Aprobado</span>
-                                                                </c:when>
-                                                                <c:when test="${doc.estado == 'En Revisión'}">
-                                                                    <span class="badge badge-warning">En Revisión</span>
-                                                                </c:when>
-                                                                <c:when test="${doc.estado == 'Reprobado'}">
-                                                                    <span class="badge badge-danger">Reprobado</span>
-                                                                </c:when>
-                                                                <c:otherwise>
-                                                                    <span class="badge badge-secondary">Pendiente</span>
-                                                                </c:otherwise>
-                                                            </c:choose>
+                                                            <span class="badge ${doc.estado_director == 'Aprobado' ? 'badge-success' : (doc.estado_director == 'Corregir' ? 'badge-danger' : 'badge-warning')}">
+                                                                ${doc.estado_director}
+                                                            </span>
                                                         </td>
-                                                        <td class="small">
-                                                            ${not empty doc.nombre_director ? doc.nombre_director : '---'}<br>
-                                                            <small class="text-muted">Cargo: Director</small>
-                                                        </td>
-                                                        <td class="small text-info italic">
-                                                            ${not empty doc.comentario ? doc.comentario : 'Esperando revisión...'}
-                                                        </td>
+                                                        <td class="small text-muted">${doc.estado_evaluador}</td>
                                                         <td class="text-right">
                                                             <a href="${doc.link_drive}" target="_blank" class="text-warning small text-decoration-none">
-                                                                <i class="fas fa-external-link-alt"></i> Ver
+                                                                <i class="fas fa-external-link-alt"></i> Ver Drive
                                                             </a>
                                                         </td>
                                                     </tr>
                                                 </c:forEach>
-                                                <c:if test="${historialDocs.rowCount == 0}">
-                                                    <tr>
-                                                        <td colspan="6" class="text-center text-muted small py-3">No hay documentos en el historial.</td>
-                                                    </tr>
-                                                </c:if>
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-
                             </div>
                             <div class="text-right ml-4">
                                 <span class="badge badge-success px-3 py-2">ASIGNADO OFICIALMENTE</span>
@@ -266,7 +235,7 @@
                                 <input type="hidden" name="accion" value="enviar_solicitud">
                                 <input type="hidden" name="id_proyecto" value="${p.id}">
                                 <div class="form-group mb-2">
-                                    <label class="small text-muted mb-1">LINK GOOGLE DRIVE</label>
+                                    <label class="small text-muted mb-1">LINK PROYECTO DRIVE</label>
                                     <input type="url" name="txtLink" class="form-control input-drive" required>
                                 </div>
                                 <div class="row mb-3">
