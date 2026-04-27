@@ -9,7 +9,7 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. CONSULTA: Trae el proyecto asignado (Ajustada para leer estados directos) --%>
+<%-- 1. CONSULTA: Trae el proyecto asignado --%>
 <sql:query dataSource="${ds}" var="proyectoAsignado">
     SELECT 
         p.*, 
@@ -31,7 +31,7 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- CONSULTA CORREGIDA: Historial detallado leyendo directamente de documentos_proyecto --%>
+<%-- CONSULTA: Historial de documentos --%>
 <c:if test="${proyectoAsignado.rowCount > 0}">
     <sql:query dataSource="${ds}" var="historialDocs">
         SELECT 
@@ -40,34 +40,26 @@
             dp.link_drive,
             dp.fecha_subida,
             dp.estado_director,
-            dp.estado_evaluador,
-            d.nombre_director
+            dp.estado_evaluador
         FROM documentos_proyecto dp
-        JOIN proyectos p ON dp.proyecto_id = p.id
-        LEFT JOIN directores d ON p.director_id = d.id
         WHERE dp.proyecto_id = ? 
         ORDER BY dp.fecha_subida DESC
         <sql:param value="${proyectoAsignado.rows[0].id}" />
     </sql:query>
 </c:if>
 
-<%-- 2. CONSULTA: Solicitudes pendientes --%>
+<%-- CONSULTA: Solicitudes pendientes y Proyectos --%>
 <sql:query dataSource="${ds}" var="miSolicitud">
-    SELECT s.*, p.nombre_proyecto 
-    FROM solicitudes_proyectos s
+    SELECT s.*, p.nombre_proyecto FROM solicitudes_proyectos s
     JOIN proyectos p ON s.proyecto_id = p.id
     WHERE s.estudiante_id = ? AND s.estado = 'Pendiente'
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- 3. CONSULTA: Proyectos disponibles --%>
 <sql:query dataSource="${ds}" var="proyectosDisponibles">
-    SELECT * FROM proyectos 
-    WHERE estado = 'Disponible' 
-    ORDER BY id DESC
+    SELECT * FROM proyectos WHERE estado = 'Disponible' ORDER BY id DESC
 </sql:query>
 
-<%-- 4. CONSULTA: Lista de estudiantes --%>
 <sql:query dataSource="${ds}" var="listaEstudiantes">
     SELECT id, nombre_estudiante FROM estudiantes WHERE id != ?
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
@@ -88,13 +80,13 @@
         .card-proyecto { background-color: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: 0.3s; height: 100%; }
         .card-proyecto:hover { border-color: var(--accent); transform: translateY(-5px); }
         .badge-facultad { background-color: #333; color: #ddd; font-size: 0.7rem; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; }
-        .btn-tomar { background-color: var(--accent); color: #000; font-weight: 700; border-radius: 8px; border: none; padding: 10px; transition: 0.3s; }
+        .btn-tomar { background-color: var(--accent); color: #000; font-weight: 700; border-radius: 8px; border: none; padding: 10px; }
         .input-drive { background-color: #0d0d0d !important; border: 1px solid #444 !important; color: white !important; font-size: 0.8rem; }
         .info-label { font-size: 0.65rem; color: var(--accent); font-weight: 800; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 2px; }
-        
         .table-docs { background-color: #111; border-radius: 8px; overflow: hidden; }
         .table-docs th { border-top: none; color: var(--accent); font-size: 0.7rem; text-transform: uppercase; }
         .table-docs td { vertical-align: middle; border-color: #222; font-size: 0.85rem; }
+        .badge-eval { font-size: 0.7rem; padding: 3px 8px; }
     </style>
 </head>
 <body>
@@ -135,37 +127,25 @@
                                         <label class="info-label">INTEGRANTES DEL GRUPO</label>
                                         <div class="text-white small">
                                             <i class="fas fa-users mr-2 text-muted"></i>
-                                            <c:set var="hayContenido" value="false" />
-                                            <c:if test="${not empty miP.nombre_principal}">
-                                                ${miP.nombre_principal}
-                                                <c:set var="hayContenido" value="true" />
-                                            </c:if>
-                                            <c:if test="${not empty miP.nombre_comp1}">
-                                                ${hayContenido ? ', ' : ''} ${miP.nombre_comp1}
-                                                <c:set var="hayContenido" value="true" />
-                                            </c:if>
-                                            <c:if test="${not empty miP.nombre_comp2}">
-                                                ${hayContenido ? ', ' : ''} ${miP.nombre_comp2}
-                                                <c:set var="hayContenido" value="true" />
-                                            </c:if>
+                                            ${miP.nombre_principal}${not empty miP.nombre_comp1 ? ', '.concat(miP.nombre_comp1) : ''}${not empty miP.nombre_comp2 ? ', '.concat(miP.nombre_comp2) : ''}
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="mt-5 pt-4" style="border-top: 1px solid #333;">
-                                    <h6 class="text-white font-weight-bold mb-3 small"><i class="fas fa-folder-plus mr-2 text-warning"></i> ENTREGAS Y DOCUMENTACIÓN</h6>
+                                    <h6 class="text-white font-weight-bold mb-3 small"><i class="fas fa-file-upload mr-2 text-warning"></i> ENTREGAR AVANCE</h6>
                                     
                                     <form action="../acciones_estudiante.jsp" method="POST" class="row no-gutters mb-4">
                                         <input type="hidden" name="accion" value="subir_documento">
                                         <input type="hidden" name="id_proyecto" value="${miP.id}">
                                         <div class="col-md-4 pr-2">
-                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre de la versión/avance" required>
+                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre de la entrega (Ej: Entrega Final)" required>
                                         </div>
                                         <div class="col-md-6 pr-2">
-                                            <input type="url" name="txtLinkDrive" class="form-control input-drive" placeholder="Link de Google Drive" required>
+                                            <input type="url" name="txtLinkDrive" class="form-control input-drive" placeholder="URL de Google Drive" required>
                                         </div>
                                         <div class="col-md-2">
-                                            <button type="submit" class="btn btn-warning btn-block btn-sm font-weight-bold" style="height: 35px;">SUBIR</button>
+                                            <button type="submit" class="btn btn-warning btn-block btn-sm font-weight-bold" style="height: 35px;">ENTREGAR</button>
                                         </div>
                                     </form>
 
@@ -173,11 +153,11 @@
                                         <table class="table table-dark table-docs mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th>Fecha</th>
+                                                    <th>Fecha de Subida</th>
                                                     <th>Documento</th>
-                                                    <th>Estado Director</th>
-                                                    <th>Evaluador</th>
-                                                    <th class="text-right">Acción</th>
+                                                    <th>Aval Director</th>
+                                                    <th>Aval Evaluador</th>
+                                                    <th class="text-right">Link</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -186,14 +166,34 @@
                                                         <td class="text-muted small">${doc.fecha_subida}</td>
                                                         <td class="font-weight-bold">${doc.nombre_documento}</td>
                                                         <td>
-                                                            <span class="badge ${doc.estado_director == 'Aprobado' ? 'badge-success' : (doc.estado_director == 'Corregir' ? 'badge-danger' : 'badge-warning')}">
-                                                                ${doc.estado_director}
-                                                            </span>
+                                                            <c:choose>
+                                                                <c:when test="${doc.estado_director == 'Aprobado'}">
+                                                                    <span class="badge badge-success">APROBADO</span>
+                                                                </c:when>
+                                                                <c:when test="${doc.estado_director == 'Corregir'}">
+                                                                    <span class="badge badge-danger">CORREGIR</span>
+                                                                </c:when>
+                                                                <c:otherwise>
+                                                                    <span class="badge badge-warning">PENDIENTE</span>
+                                                                </c:otherwise>
+                                                            </c:choose>
                                                         </td>
-                                                        <td class="small text-muted">${doc.estado_evaluador}</td>
+                                                        <td>
+                                                            <c:choose>
+                                                                <c:when test="${doc.estado_evaluador == 'Aprobado'}">
+                                                                    <span class="badge badge-success">APROBADO</span>
+                                                                </c:when>
+                                                                <c:when test="${doc.estado_evaluador == 'Corregir'}">
+                                                                    <span class="badge badge-danger">CORREGIR</span>
+                                                                </c:when>
+                                                                <c:otherwise>
+                                                                    <span class="badge badge-secondary">PENDIENTE</span>
+                                                                </c:otherwise>
+                                                            </c:choose>
+                                                        </td>
                                                         <td class="text-right">
-                                                            <a href="${doc.link_drive}" target="_blank" class="text-warning small text-decoration-none">
-                                                                <i class="fas fa-external-link-alt"></i> Ver Drive
+                                                            <a href="${doc.link_drive}" target="_blank" class="btn btn-outline-warning btn-sm">
+                                                                <i class="fas fa-external-link-alt"></i>
                                                             </a>
                                                         </td>
                                                     </tr>
@@ -204,22 +204,24 @@
                                 </div>
                             </div>
                             <div class="text-right ml-4">
-                                <span class="badge badge-success px-3 py-2">ASIGNADO OFICIALMENTE</span>
+                                <span class="badge badge-success px-3 py-2">PROYECTO ACTIVO</span>
                                 <h5 class="text-warning mt-3">${miP.codigo_proyecto}</h5>
                             </div>
                         </div>
                     </div>
                 </c:when>
                 <c:otherwise>
-                    <div class="card-proyecto bg-dark text-center py-4" style="border: 1px dashed #444;">
-                        <p class="mb-0 text-muted">No tienes proyectos asignados actualmente.</p>
+                    <div class="card-proyecto bg-dark text-center py-5" style="border: 1px dashed #444;">
+                        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                        <p class="mb-0 text-muted">No tienes proyectos asignados. Revisa la lista de disponibles abajo.</p>
                     </div>
                 </c:otherwise>
             </c:choose>
         </div>
     </div>
 
-    <h6 class="text-muted small font-weight-bold mb-3">LISTA DE PROYECTOS DISPONIBLES</h6>
+    <%-- SECCIÓN DE PROYECTOS DISPONIBLES (SE MANTIENE IGUAL) --%>
+    <h6 class="text-muted small font-weight-bold mb-3">PROYECTOS DISPONIBLES PARA SOLICITAR</h6>
     <div class="row">
         <c:forEach var="p" items="${proyectosDisponibles.rows}">
             <div class="col-md-4 mb-4">
@@ -235,7 +237,7 @@
                                 <input type="hidden" name="accion" value="enviar_solicitud">
                                 <input type="hidden" name="id_proyecto" value="${p.id}">
                                 <div class="form-group mb-2">
-                                    <label class="small text-muted mb-1">LINK PROYECTO DRIVE</label>
+                                    <label class="small text-muted mb-1">LINK DE PROPUESTA (DRIVE)</label>
                                     <input type="url" name="txtLink" class="form-control input-drive" required>
                                 </div>
                                 <div class="row mb-3">
@@ -276,5 +278,8 @@
         </c:forEach>
     </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
