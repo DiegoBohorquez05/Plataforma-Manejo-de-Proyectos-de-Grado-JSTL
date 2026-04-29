@@ -16,14 +16,48 @@
     
     <%-- CASO: CREAR USUARIO --%>
     <c:when test="${param.accion == 'crear'}">
-        <%-- La variable ${param.tabla} llega desde el campo oculto del modal --%>
-        <sql:update dataSource="${ds}">
-            INSERT INTO ${param.tabla} (nombre, gmail, password) 
-            VALUES (?, ?, ?);
-            <sql:param value="${param.txtNombre}" />
-            <sql:param value="${param.txtGmail}" />
-            <sql:param value="${param.txtPass}" />
-        </sql:update>
+        <c:choose>
+            <%-- AJUSTE DINÁMICO DE COLUMNAS SEGÚN LA TABLA --%>
+            <c:when test="${param.tabla == 'estudiantes'}">
+                <sql:update dataSource="${ds}">
+                    INSERT INTO estudiantes (nombre_estudiante, gmail, password) 
+                    VALUES (?, ?, ?);
+                    <sql:param value="${param.txtNombre}" />
+                    <sql:param value="${param.txtGmail}" />
+                    <sql:param value="${param.txtPass}" />
+                </sql:update>
+            </c:when>
+            
+            <c:when test="${param.tabla == 'directores'}">
+                <sql:update dataSource="${ds}">
+                    INSERT INTO directores (nombre_director, gmail, password) 
+                    VALUES (?, ?, ?);
+                    <sql:param value="${param.txtNombre}" />
+                    <sql:param value="${param.txtGmail}" />
+                    <sql:param value="${param.txtPass}" />
+                </sql:update>
+            </c:when>
+
+            <c:when test="${param.tabla == 'evaluadores'}">
+                <sql:update dataSource="${ds}">
+                    INSERT INTO evaluadores (nombre_evaluador, gmail, password) 
+                    VALUES (?, ?, ?);
+                    <sql:param value="${param.txtNombre}" />
+                    <sql:param value="${param.txtGmail}" />
+                    <sql:param value="${param.txtPass}" />
+                </sql:update>
+            </c:when>
+
+            <c:when test="${param.tabla == 'coordinadores'}">
+                <sql:update dataSource="${ds}">
+                    INSERT INTO coordinadores (nombre_coordinador, gmail, password) 
+                    VALUES (?, ?, ?);
+                    <sql:param value="${param.txtNombre}" />
+                    <sql:param value="${param.txtGmail}" />
+                    <sql:param value="${param.txtPass}" />
+                </sql:update>
+            </c:when>
+        </c:choose>
     </c:when>
 
     <%-- CASO: ELIMINAR USUARIO --%>
@@ -34,9 +68,7 @@
         </sql:update>
     </c:when>
 
-    <%-- Aquí podrías añadir el caso 'editar' más adelante --%>
-
 </c:choose>
 
-<%-- 3. Redirección final: Volvemos al dashboard para ver los cambios --%>
+<%-- 3. Redirección final --%>
 <c:redirect url="dashboard_admin.jsp" />

@@ -9,7 +9,7 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. CONSULTA: Trae el proyecto asignado --%>
+<%-- 1. CONSULTA: Proyecto Asignado --%>
 <sql:query dataSource="${ds}" var="proyectoAsignado">
     SELECT 
         p.*, 
@@ -22,9 +22,9 @@
     LEFT JOIN directores d ON p.director_id = d.id
     LEFT JOIN evaluadores ev ON p.evaluador_id = ev.id
     LEFT JOIN estudiantes e ON p.estudiante_id = e.id
-    LEFT JOIN estudiantes c1 ON p.compañero1_id = c1.id
-    LEFT JOIN estudiantes c2 ON p.compañero2_id = c2.id
-    WHERE p.estudiante_id = ? OR p.compañero1_id = ? OR p.compañero2_id = ?
+    LEFT JOIN estudiantes c1 ON p.companero1_id = c1.id
+    LEFT JOIN estudiantes c2 ON p.companero2_id = c2.id
+    WHERE p.estudiante_id = ? OR p.companero1_id = ? OR p.companero2_id = ?
     LIMIT 1
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
@@ -48,7 +48,7 @@
     </sql:query>
 </c:if>
 
-<%-- CONSULTA: Solicitudes pendientes y Proyectos --%>
+<%-- CONSULTA: Solicitudes enviadas (Para el marcador de seguimiento) --%>
 <sql:query dataSource="${ds}" var="miSolicitud">
     SELECT s.*, p.nombre_proyecto FROM solicitudes_proyectos s
     JOIN proyectos p ON s.proyecto_id = p.id
@@ -60,8 +60,18 @@
     SELECT * FROM proyectos WHERE estado = 'Disponible' ORDER BY id DESC
 </sql:query>
 
+<%-- FILTRO DE ESTUDIANTES: Solo muestra los que están libres (Sin proyecto y sin solicitud activa) --%>
 <sql:query dataSource="${ds}" var="listaEstudiantes">
-    SELECT id, nombre_estudiante FROM estudiantes WHERE id != ?
+    SELECT id, nombre_estudiante 
+    FROM estudiantes 
+    WHERE id != ? 
+    AND id NOT IN (SELECT IFNULL(estudiante_id, 0) FROM proyectos)
+    AND id NOT IN (SELECT IFNULL(companero1_id, 0) FROM proyectos)
+    AND id NOT IN (SELECT IFNULL(companero2_id, 0) FROM proyectos)
+    AND id NOT IN (SELECT IFNULL(estudiante_id, 0) FROM solicitudes_proyectos WHERE estado IN ('Pendiente', 'Aprobada'))
+    AND id NOT IN (SELECT IFNULL(companero1_id, 0) FROM solicitudes_proyectos WHERE estado IN ('Pendiente', 'Aprobada'))
+    AND id NOT IN (SELECT IFNULL(companero2_id, 0) FROM solicitudes_proyectos WHERE estado IN ('Pendiente', 'Aprobada'))
+    ORDER BY nombre_estudiante ASC
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
@@ -86,7 +96,6 @@
         .table-docs { background-color: #111; border-radius: 8px; overflow: hidden; }
         .table-docs th { border-top: none; color: var(--accent); font-size: 0.7rem; text-transform: uppercase; }
         .table-docs td { vertical-align: middle; border-color: #222; font-size: 0.85rem; }
-        .badge-eval { font-size: 0.7rem; padding: 3px 8px; }
     </style>
 </head>
 <body>
@@ -101,6 +110,24 @@
 
 <div class="container-fluid px-5">
     
+    <%-- SECCIÓN: MARCADOR DE SEGUIMIENTO --%>
+    <c:if test="${proyectoAsignado.rowCount == 0 && miSolicitud.rowCount > 0}">
+        <div class="card-proyecto mb-5" style="border: 1px solid var(--accent); background: linear-gradient(45deg, #161616, #1a1a10);">
+            <h6 class="info-label">ESTADO DE TU SOLICITUD ENVIADA</h6>
+            <div class="d-flex align-items-center justify-content-between mt-3">
+                <div>
+                    <h4 class="text-white">${miSolicitud.rows[0].nombre_proyecto}</h4>
+                    <p class="text-muted small">Enviada el: ${miSolicitud.rows[0].fecha_solicitud}</p>
+                </div>
+                <div class="text-center">
+                    <div class="spinner-border text-warning spinner-border-sm mb-2"></div>
+                    <span class="d-block badge badge-warning px-3 py-2">PENDIENTE DE REVISIÓN</span>
+                    <small class="text-muted d-block mt-1">El coordinador está evaluando tu propuesta</small>
+                </div>
+            </div>
+        </div>
+    </c:if>
+
     <h6 class="text-muted small font-weight-bold mb-3">MI PROYECTO ASIGNADO</h6>
     <div class="row mb-5">
         <div class="col-12">
@@ -134,12 +161,11 @@
 
                                 <div class="mt-5 pt-4" style="border-top: 1px solid #333;">
                                     <h6 class="text-white font-weight-bold mb-3 small"><i class="fas fa-file-upload mr-2 text-warning"></i> ENTREGAR AVANCE</h6>
-                                    
                                     <form action="../acciones_estudiante.jsp" method="POST" class="row no-gutters mb-4">
                                         <input type="hidden" name="accion" value="subir_documento">
                                         <input type="hidden" name="id_proyecto" value="${miP.id}">
                                         <div class="col-md-4 pr-2">
-                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre de la entrega (Ej: Entrega Final)" required>
+                                            <input type="text" name="txtNombreDoc" class="form-control input-drive" placeholder="Nombre de la entrega" required>
                                         </div>
                                         <div class="col-md-6 pr-2">
                                             <input type="url" name="txtLinkDrive" class="form-control input-drive" placeholder="URL de Google Drive" required>
@@ -153,7 +179,7 @@
                                         <table class="table table-dark table-docs mb-0">
                                             <thead>
                                                 <tr>
-                                                    <th>Fecha de Subida</th>
+                                                    <th>Fecha</th>
                                                     <th>Documento</th>
                                                     <th>Aval Director</th>
                                                     <th>Aval Evaluador</th>
@@ -165,37 +191,9 @@
                                                     <tr>
                                                         <td class="text-muted small">${doc.fecha_subida}</td>
                                                         <td class="font-weight-bold">${doc.nombre_documento}</td>
-                                                        <td>
-                                                            <c:choose>
-                                                                <c:when test="${doc.estado_director == 'Aprobado'}">
-                                                                    <span class="badge badge-success">APROBADO</span>
-                                                                </c:when>
-                                                                <c:when test="${doc.estado_director == 'Corregir'}">
-                                                                    <span class="badge badge-danger">CORREGIR</span>
-                                                                </c:when>
-                                                                <c:otherwise>
-                                                                    <span class="badge badge-warning">PENDIENTE</span>
-                                                                </c:otherwise>
-                                                            </c:choose>
-                                                        </td>
-                                                        <td>
-                                                            <c:choose>
-                                                                <c:when test="${doc.estado_evaluador == 'Aprobado'}">
-                                                                    <span class="badge badge-success">APROBADO</span>
-                                                                </c:when>
-                                                                <c:when test="${doc.estado_evaluador == 'Corregir'}">
-                                                                    <span class="badge badge-danger">CORREGIR</span>
-                                                                </c:when>
-                                                                <c:otherwise>
-                                                                    <span class="badge badge-secondary">PENDIENTE</span>
-                                                                </c:otherwise>
-                                                            </c:choose>
-                                                        </td>
-                                                        <td class="text-right">
-                                                            <a href="${doc.link_drive}" target="_blank" class="btn btn-outline-warning btn-sm">
-                                                                <i class="fas fa-external-link-alt"></i>
-                                                            </a>
-                                                        </td>
+                                                        <td><span class="badge ${doc.estado_director == 'Aprobado' ? 'badge-success' : 'badge-warning'}">${doc.estado_director}</span></td>
+                                                        <td><span class="badge ${doc.estado_evaluador == 'Aprobado' ? 'badge-success' : 'badge-warning'}">${doc.estado_evaluador}</span></td>
+                                                        <td class="text-right"><a href="${doc.link_drive}" target="_blank" class="btn btn-outline-warning btn-sm"><i class="fas fa-external-link-alt"></i></a></td>
                                                     </tr>
                                                 </c:forEach>
                                             </tbody>
@@ -203,25 +201,20 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="text-right ml-4">
-                                <span class="badge badge-success px-3 py-2">PROYECTO ACTIVO</span>
-                                <h5 class="text-warning mt-3">${miP.codigo_proyecto}</h5>
-                            </div>
                         </div>
                     </div>
                 </c:when>
                 <c:otherwise>
                     <div class="card-proyecto bg-dark text-center py-5" style="border: 1px dashed #444;">
                         <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                        <p class="mb-0 text-muted">No tienes proyectos asignados. Revisa la lista de disponibles abajo.</p>
+                        <p class="mb-0 text-muted">No tienes proyectos asignados actualmente.</p>
                     </div>
                 </c:otherwise>
             </c:choose>
         </div>
     </div>
 
-    <%-- SECCIÓN DE PROYECTOS DISPONIBLES (SE MANTIENE IGUAL) --%>
-    <h6 class="text-muted small font-weight-bold mb-3">PROYECTOS DISPONIBLES PARA SOLICITAR</h6>
+    <h6 class="text-muted small font-weight-bold mb-3">PROYECTOS DISPONIBLES</h6>
     <div class="row">
         <c:forEach var="p" items="${proyectosDisponibles.rows}">
             <div class="col-md-4 mb-4">
@@ -230,47 +223,31 @@
                     <span class="badge-facultad">${p.facultad}</span>
                     <p class="text-muted small mt-3" style="height: 50px; overflow: hidden;">${p.descripcion}</p>
                     <hr style="border-color: #333;">
-                    
                     <c:choose>
                         <c:when test="${proyectoAsignado.rowCount == 0 && miSolicitud.rowCount == 0}">
                             <form action="../acciones_estudiante.jsp" method="POST">
                                 <input type="hidden" name="accion" value="enviar_solicitud">
                                 <input type="hidden" name="id_proyecto" value="${p.id}">
-                                <div class="form-group mb-2">
-                                    <label class="small text-muted mb-1">LINK DE PROPUESTA (DRIVE)</label>
-                                    <input type="url" name="txtLink" class="form-control input-drive" required>
-                                </div>
-                                <div class="row mb-3">
+                                <input type="url" name="txtLink" class="form-control input-drive mb-2" placeholder="Link Propuesta" required>
+                                <div class="row mb-2">
                                     <div class="col-6">
-                                        <label class="small text-muted mb-1">COMPAÑERO 1</label>
-                                        <select name="id_companero1" class="form-control input-drive py-0" style="height: 30px;">
-                                            <option value="">Ninguno</option>
-                                            <c:forEach var="est" items="${listaEstudiantes.rows}">
-                                                <option value="${est.id}">${est.nombre_estudiante}</option>
-                                            </c:forEach>
+                                        <select name="id_companero1" class="form-control input-drive py-0 small" style="height: 30px;">
+                                            <option value="">Compañero 1</option>
+                                            <c:forEach var="est" items="${listaEstudiantes.rows}"><option value="${est.id}">${est.nombre_estudiante}</option></c:forEach>
                                         </select>
                                     </div>
                                     <div class="col-6">
-                                        <label class="small text-muted mb-1">COMPAÑERO 2</label>
-                                        <select name="id_companero2" class="form-control input-drive py-0" style="height: 30px;">
-                                            <option value="">Ninguno</option>
-                                            <c:forEach var="est" items="${listaEstudiantes.rows}">
-                                                <option value="${est.id}">${est.nombre_estudiante}</option>
-                                            </c:forEach>
+                                        <select name="id_companero2" class="form-control input-drive py-0 small" style="height: 30px;">
+                                            <option value="">Compañero 2</option>
+                                            <c:forEach var="est" items="${listaEstudiantes.rows}"><option value="${est.id}">${est.nombre_estudiante}</option></c:forEach>
                                         </select>
                                     </div>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-warning font-weight-bold">${p.codigo_proyecto}</span>
-                                    <button type="submit" class="btn btn-tomar px-4">SOLICITAR</button>
-                                </div>
+                                <button type="submit" class="btn btn-tomar btn-block">SOLICITAR PROYECTO</button>
                             </form>
                         </c:when>
                         <c:otherwise>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <span class="text-warning font-weight-bold">${p.codigo_proyecto}</span>
-                                <button class="btn btn-secondary btn-sm disabled" disabled>NO DISPONIBLE</button>
-                            </div>
+                            <button class="btn btn-secondary btn-block disabled" disabled>OPCIÓN BLOQUEADA</button>
                         </c:otherwise>
                     </c:choose>
                 </div>
@@ -278,8 +255,5 @@
         </c:forEach>
     </div>
 </div>
-
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

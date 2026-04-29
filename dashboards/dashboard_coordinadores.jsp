@@ -19,6 +19,29 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
+<%-- NUEVA CONSULTA: Seguimiento de avances y avales --%>
+<sql:query dataSource="${ds}" var="seguimientoProyectos">
+    SELECT 
+        p.id AS proyecto_id,
+        p.nombre_proyecto,
+        p.estado AS estado_proyecto,
+        dp.nombre_documento AS ultimo_avance,
+        dp.estado_director,
+        dp.estado_evaluador,
+        d.nombre_director,
+        ev.nombre_evaluador
+    FROM proyectos p
+    LEFT JOIN directores d ON p.director_id = d.id
+    LEFT JOIN evaluadores ev ON p.evaluador_id = ev.id
+    LEFT JOIN documentos_proyecto dp ON dp.id = (
+        SELECT id FROM documentos_proyecto 
+        WHERE proyecto_id = p.id 
+        ORDER BY fecha_subida DESC LIMIT 1
+    )
+    WHERE p.coordinador_id = ? AND p.estado IN ('Asignado', 'Finalizado')
+    <sql:param value="${sessionScope.usuarioLogueado.id}" />
+</sql:query>
+
 <%-- 2. CONSULTA DE SOLICITUDES PENDIENTES --%>
 <sql:query dataSource="${ds}" var="solicitudes">
     SELECT s.*, e.nombre_estudiante, p.nombre_proyecto 
@@ -26,6 +49,19 @@
     JOIN estudiantes e ON s.estudiante_id = e.id
     JOIN proyectos p ON s.proyecto_id = p.id
     WHERE s.estado = 'Pendiente' AND p.coordinador_id = ?
+    <sql:param value="${sessionScope.usuarioLogueado.id}" />
+</sql:query>
+
+<sql:query dataSource="${ds}" var="proyectos">
+    SELECT 
+        id, 
+        nombre_proyecto, 
+        descripcion, 
+        facultad, 
+        codigo_proyecto, 
+        estado 
+    FROM proyectos 
+    WHERE coordinador_id = ?
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
@@ -93,6 +129,7 @@
         </div>
 
         <div class="col-md-9">
+            <%-- SECCIÓN DE SOLICITUDES --%>
             <c:if test="${solicitudes.rowCount > 0}">
                 <div class="card-dark p-4 mb-4" style="border-left: 5px solid var(--accent);">
                     <h6 class="text-warning small font-weight-bold mb-3">SOLICITUDES POR APROBAR</h6>
@@ -126,16 +163,76 @@
                 </div>
             </c:if>
 
+            <%-- NUEVA TABLA: SEGUIMIENTO DE PASOS Y AVAL FINAL --%>
+            <div class="card-dark p-4 mb-4" style="border-top: 3px solid #17a2b8;">
+                <h6 class="text-info small font-weight-bold mb-4"><i class="fas fa-stream mr-2"></i> SEGUIMIENTO Y AVAL FINAL</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>PROYECTO EN CURSO</th>
+                                <th>ESTADO AVALES (DIR/EVA)</th>
+                                <th>PASO / ÚLTIMO AVANCE</th>
+                                <th class="text-right">ACCIÓN COORDINADOR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <c:forEach var="seg" items="${seguimientoProyectos.rows}">
+                                <tr>
+                                    <td>
+                                        <div class="text-white font-weight-bold small">${seg.nombre_proyecto}</div>
+                                        <div class="text-muted" style="font-size: 0.65rem;">${seg.nombre_director} / ${seg.nombre_evaluador}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge ${seg.estado_director == 'Aprobado' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.6rem;">${seg.estado_director}</span>
+                                        <span class="badge ${seg.estado_evaluador == 'Aprobado' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.6rem;">${seg.estado_evaluador}</span>
+                                    </td>
+                                    <td class="text-muted small">
+                                        <c:choose>
+                                            <c:when test="${empty seg.ultimo_avance}">Esperando entregas...</c:when>
+                                            <c:otherwise>
+                                                ${seg.ultimo_avance}
+                                                <c:if test="${seg.estado_director == 'Corregir' || seg.estado_evaluador == 'Corregir'}">
+                                                    <i class="fas fa-exclamation-triangle text-danger ml-1" title="Requiere corrección"></i>
+                                                </c:if>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                    <td class="text-right">
+                                        <c:choose>
+                                            <c:when test="${seg.estado_proyecto == 'Finalizado'}">
+                                                <span class="badge badge-success px-3 py-2"><i class="fas fa-check-double mr-1"></i> FINALIZADO</span>
+                                            </c:when>
+                                            <c:when test="${seg.estado_director == 'Aprobado' && seg.estado_evaluador == 'Aprobado'}">
+                                                <form action="../acciones_coordinador.jsp" method="POST">
+                                                    <input type="hidden" name="accion" value="finalizar_proyecto">
+                                                    <input type="hidden" name="id_proyecto" value="${seg.proyecto_id}">
+                                                    <button type="submit" class="btn btn-warning btn-sm font-weight-bold">DAR AVAL FINAL</button>
+                                                </form>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <button class="btn btn-dark btn-sm text-muted" disabled style="font-size: 0.7rem; border: 1px solid #333;">PENDIENTE AVALES</button>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                </tr>
+                            </c:forEach>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <%-- TABLA GENERAL DE PROYECTOS --%>
             <div class="card-dark p-4">
                 <h6 class="text-muted small font-weight-bold mb-4">TODOS LOS PROYECTOS</h6>
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
-                                <th style="width: 100px;">Código</th>
-                                <th style="width: 250px;">Proyecto</th>
-                                <th style="text-align: center;">Estado</th>
-                                <th>Asignaciones</th>
+                                <th>CÓDIGO</th>
+                                <th>PROYECTO</th> <th>DESCRIPCION</th>
+                                <th>FACULTAD</th> <th>ESTADO</th>
+                                <th>ASIGNACIONES</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -143,24 +240,14 @@
                                 <tr>
                                     <td class="text-warning font-weight-bold">${p.codigo_proyecto}</td>
                                     <td class="text-white font-weight-bold small">${p.nombre_proyecto}</td>
+                                    <td class="text-white font-weight-bold">${p.descripcion}</td>
+                                    <td class="text-white font-weight-bold small">${p.facultad}</td>
                                     <td style="text-align: center;">
-                                        <span class="badge-status ${p.estado == 'Asignado' ? 'badge-success' : 'badge-info'}">${p.estado}</span>
+                                        <span class="badge-status ${p.estado == 'Asignado' || p.estado == 'Finalizado' ? 'badge-success' : 'badge-info'}">${p.estado}</span>
                                     </td>
                                     <td>
-                                        <div class="mb-2">
-                                            <i class="fas mr-2 small text-muted"></i>
-                                            <c:choose>
-                                                <c:when test="${not empty p.nombre_estudiante}">
-                                                </c:when>
-                                                <c:otherwise>
-                                                    <span class="text-muted small font-italic">Esperando aprobación...</span>
-                                                </c:otherwise>
-                                            </c:choose>
-                                        </div>
-
                                         <c:if test="${not empty p.nombre_estudiante}">
                                             <c:choose>
-                                                <%-- VALIDACIÓN DE BLOQUEO (VISTA ESTÁTICA CON CANDADOS) --%>
                                                 <c:when test="${p.director_id > 0 && p.evaluador_id > 0}">
                                                     <div class="bg-dark p-2 rounded mt-2 border border-secondary" style="opacity: 0.85;">
                                                         <div class="form-row">
@@ -183,7 +270,6 @@
                                                         </div>
                                                     </div>
                                                 </c:when>
-                                                <%-- VISTA DE FORMULARIO SI NO ESTÁ ASIGNADO COMPLETO --%>
                                                 <c:otherwise>
                                                     <form action="../acciones_coordinador.jsp" method="POST" class="bg-dark p-2 rounded mt-2">
                                                         <input type="hidden" name="accion" value="asignar_personal">

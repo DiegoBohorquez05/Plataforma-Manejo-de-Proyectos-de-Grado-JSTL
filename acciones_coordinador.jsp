@@ -24,7 +24,7 @@
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
 
-    <%-- 2. ACCIÓN: APROBAR ESTUDIANTE Y COMPAÑEROS (SIN LINK) --%>
+    <%-- 2. ACCIÓN: APROBAR ESTUDIANTE Y COMPAÑEROS --%>
     <c:when test="${param.accion == 'aprobar_estudiante'}">
         <%-- Obtenemos los IDs de la solicitud --%>
         <sql:query dataSource="${ds}" var="resSol">
@@ -39,13 +39,13 @@
             <sql:update dataSource="${ds}">
                 UPDATE proyectos SET 
                     estudiante_id = ?, 
-                    compañero1_id = ?, 
-                    compañero2_id = ?, 
+                    companero1_id = ?, 
+                    companero2_id = ?, 
                     estado = 'Asignado' 
                 WHERE id = ?
                 <sql:param value="${sol.estudiante_id}" />
-                <sql:param value="${sol.compañero1_id}" />
-                <sql:param value="${sol.compañero2_id}" />
+                <sql:param value="${sol.companero1_id}" />
+                <sql:param value="${sol.companero2_id}" />
                 <sql:param value="${sol.proyecto_id}" />
             </sql:update>
 
@@ -81,6 +81,16 @@
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
 
+    <%-- 5. NUEVA ACCIÓN: FINALIZAR PROYECTO (AVAL FINAL) --%>
+    <c:when test="${param.accion == 'finalizar_proyecto'}">
+        <sql:update dataSource="${ds}">
+            UPDATE proyectos SET estado = 'Finalizado' WHERE id = ?
+            <sql:param value="${param.id_proyecto}" />
+        </sql:update>
+        <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
+    </c:when>
+
+    <%-- REDIRECCIÓN POR DEFECTO --%>
     <c:otherwise>
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:otherwise>
