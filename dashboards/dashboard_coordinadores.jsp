@@ -9,7 +9,7 @@
     user="${applicationScope.dbUser}" 
     password="${applicationScope.dbPass}" />
 
-<%-- 1. CONSULTA DE PROYECTOS: Trae el nombre del estudiante asignado --%>
+<%-- 1. CONSULTA DE PROYECTOS GENERALES --%>
 <sql:query dataSource="${ds}" var="misProyectos">
     SELECT p.*, e.nombre_estudiante 
     FROM proyectos p 
@@ -19,17 +19,18 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- NUEVA CONSULTA: Seguimiento de avances y avales --%>
+<%-- 2. CONSULTA DE SEGUIMIENTO --%>
 <sql:query dataSource="${ds}" var="seguimientoProyectos">
     SELECT 
         p.id AS proyecto_id,
         p.nombre_proyecto,
         p.estado AS estado_proyecto,
-        dp.nombre_documento AS ultimo_avance,
+        d.nombre_director,
+        ev.nombre_evaluador,
+        (SELECT id FROM documentos_proyecto WHERE proyecto_id = p.id ORDER BY fecha_subida DESC LIMIT 1) AS id_documento,
         dp.estado_director,
         dp.estado_evaluador,
-        d.nombre_director,
-        ev.nombre_evaluador
+        dp.estado_coordinador
     FROM proyectos p
     LEFT JOIN directores d ON p.director_id = d.id
     LEFT JOIN evaluadores ev ON p.evaluador_id = ev.id
@@ -42,7 +43,7 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<%-- 2. CONSULTA DE SOLICITUDES PENDIENTES --%>
+<%-- 3. CONSULTA DE SOLICITUDES PENDIENTES --%>
 <sql:query dataSource="${ds}" var="solicitudes">
     SELECT s.*, e.nombre_estudiante, p.nombre_proyecto 
     FROM solicitudes_proyectos s
@@ -52,20 +53,7 @@
     <sql:param value="${sessionScope.usuarioLogueado.id}" />
 </sql:query>
 
-<sql:query dataSource="${ds}" var="proyectos">
-    SELECT 
-        id, 
-        nombre_proyecto, 
-        descripcion, 
-        facultad, 
-        codigo_proyecto, 
-        estado 
-    FROM proyectos 
-    WHERE coordinador_id = ?
-    <sql:param value="${sessionScope.usuarioLogueado.id}" />
-</sql:query>
-
-<%-- 3. CONSULTAS PARA LISTAS DESPLEGABLES --%>
+<%-- 4. CONSULTAS PARA LISTAS --%>
 <sql:query dataSource="${ds}" var="listaDirectores">
     SELECT id, nombre_director FROM directores ORDER BY nombre_director ASC
 </sql:query>
@@ -92,12 +80,8 @@
         .table thead th { border: none; color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; padding-left: 20px; }
         .table tbody tr { background-color: var(--row-bg); transition: 0.3s; border-radius: 10px; }
         .table tbody td { border: none; padding: 20px; vertical-align: middle; }
-        .table tbody td:first-child { border-radius: 10px 0 0 10px; }
-        .table tbody td:last-child { border-radius: 0 10px 10px 0; }
         .btn-warning { background-color: var(--accent); border: none; font-weight: 700; border-radius: 10px; text-transform: uppercase; font-size: 0.85rem; }
         .badge-status { padding: 6px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
-        .badge-success { background-color: #28a745; color: white; }
-        .badge-info { background-color: #17a2b8; color: white; }
     </style>
 </head>
 <body>
@@ -129,51 +113,38 @@
         </div>
 
         <div class="col-md-9">
-            <%-- SECCIÓN DE SOLICITUDES --%>
             <c:if test="${solicitudes.rowCount > 0}">
                 <div class="card-dark p-4 mb-4" style="border-left: 5px solid var(--accent);">
                     <h6 class="text-warning small font-weight-bold mb-3">SOLICITUDES POR APROBAR</h6>
                     <c:forEach var="sol" items="${solicitudes.rows}">
-                        <div class="d-flex justify-content-between align-items-center bg-dark p-3 rounded mb-2" style="border: 1px solid #333;">
+                        <div class="d-flex justify-content-between align-items-center bg-dark p-3 rounded mb-2">
                             <div>
                                 <span class="text-white font-weight-bold">${sol.nombre_estudiante}</span> 
-                                <span class="text-muted mx-2">solicita</span> 
+                                <span class="text-muted mx-2">pide</span> 
                                 <span class="text-warning font-weight-bold">${sol.nombre_proyecto}</span>
-                                <br>
-                                <a href="${sol.link_drive}" target="_blank" class="badge badge-info mt-2 px-3 py-1">
-                                    <i class="fab fa-google-drive mr-1"></i> VER LINK DE DRIVE
-                                </a>
+                                <a href="${sol.link_drive}" target="_blank" class="badge badge-info ml-2 px-2 py-1"><i class="fab fa-google-drive mr-1"></i> VER DRIVE</a>
                             </div>
-                            <div class="d-flex">
-                                <form action="../acciones_coordinador.jsp" method="POST" class="mr-2">
-                                    <input type="hidden" name="accion" value="aprobar_estudiante">
-                                    <input type="hidden" name="id_solicitud" value="${sol.id}">
-                                    <input type="hidden" name="id_estudiante" value="${sol.estudiante_id}">
-                                    <input type="hidden" name="id_proyecto" value="${sol.proyecto_id}">
-                                    <button type="submit" class="btn btn-success btn-sm px-3">Aceptar</button>
-                                </form>
-                                <form action="../acciones_coordinador.jsp" method="POST">
-                                    <input type="hidden" name="accion" value="rechazar_estudiante">
-                                    <input type="hidden" name="id_solicitud" value="${sol.id}">
-                                    <button type="submit" class="btn btn-outline-danger btn-sm px-3">Rechazar</button>
-                                </form>
-                            </div>
+                            <form action="../acciones_coordinador.jsp" method="POST">
+                                <input type="hidden" name="accion" value="aprobar_estudiante">
+                                <input type="hidden" name="id_solicitud" value="${sol.id}">
+                                <input type="hidden" name="id_estudiante" value="${sol.estudiante_id}">
+                                <input type="hidden" name="id_proyecto" value="${sol.proyecto_id}">
+                                <button type="submit" class="btn btn-success btn-sm px-4">Aceptar</button>
+                            </form>
                         </div>
                     </c:forEach>
                 </div>
             </c:if>
 
-            <%-- NUEVA TABLA: SEGUIMIENTO DE PASOS Y AVAL FINAL --%>
-            <div class="card-dark p-4 mb-4" style="border-top: 3px solid #17a2b8;">
+            <div class="card-dark p-4 mb-4">
                 <h6 class="text-info small font-weight-bold mb-4"><i class="fas fa-stream mr-2"></i> SEGUIMIENTO Y AVAL FINAL</h6>
                 <div class="table-responsive">
-                    <table class="table table-sm">
+                    <table class="table">
                         <thead>
                             <tr>
-                                <th>PROYECTO EN CURSO</th>
-                                <th>ESTADO AVALES (DIR/EVA)</th>
-                                <th>PASO / ÚLTIMO AVANCE</th>
-                                <th class="text-right">ACCIÓN COORDINADOR</th>
+                                <th>PROYECTO</th>
+                                <th>AVALES</th>
+                                <th class="text-right">ACCIÓN</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -184,34 +155,47 @@
                                         <div class="text-muted" style="font-size: 0.65rem;">${seg.nombre_director} / ${seg.nombre_evaluador}</div>
                                     </td>
                                     <td>
-                                        <span class="badge ${seg.estado_director == 'Aprobado' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.6rem;">${seg.estado_director}</span>
-                                        <span class="badge ${seg.estado_evaluador == 'Aprobado' ? 'badge-success' : 'badge-warning'}" style="font-size: 0.6rem;">${seg.estado_evaluador}</span>
-                                    </td>
-                                    <td class="text-muted small">
-                                        <c:choose>
-                                            <c:when test="${empty seg.ultimo_avance}">Esperando entregas...</c:when>
-                                            <c:otherwise>
-                                                ${seg.ultimo_avance}
-                                                <c:if test="${seg.estado_director == 'Corregir' || seg.estado_evaluador == 'Corregir'}">
-                                                    <i class="fas fa-exclamation-triangle text-danger ml-1" title="Requiere corrección"></i>
-                                                </c:if>
-                                            </c:otherwise>
-                                        </c:choose>
-                                    </td>
+    <%-- AVAL DIRECTOR --%>
+    <c:choose>
+        <c:when test="${seg.estado_director == 'Aprobado'}">
+            <span class="badge badge-success">DIR: Aprobado</span>
+        </c:when>
+        <c:when test="${seg.estado_director == 'Corregir'}">
+            <span class="badge badge-danger">DIR: Corregir</span>
+        </c:when>
+        <c:otherwise>
+            <span class="badge badge-warning">DIR: PENDIENTE</span>
+        </c:otherwise>
+    </c:choose>
+    
+    <%-- AVAL EVALUADOR --%>
+    <c:choose>
+        <c:when test="${seg.estado_evaluador == 'Aprobado'}">
+            <span class="badge badge-success">EVA: Aprobado</span>
+        </c:when>
+        <c:when test="${seg.estado_evaluador == 'Corregir'}">
+            <span class="badge badge-danger">EVA: Corregir</span>
+        </c:when>
+        <c:otherwise>
+            <span class="badge badge-warning">EVA: PENDIENTE</span>
+        </c:otherwise>
+    </c:choose>
+</td>
                                     <td class="text-right">
                                         <c:choose>
-                                            <c:when test="${seg.estado_proyecto == 'Finalizado'}">
+                                            <c:when test="${seg.estado_coordinador == 'Aprobado'}">
                                                 <span class="badge badge-success px-3 py-2"><i class="fas fa-check-double mr-1"></i> FINALIZADO</span>
                                             </c:when>
                                             <c:when test="${seg.estado_director == 'Aprobado' && seg.estado_evaluador == 'Aprobado'}">
                                                 <form action="../acciones_coordinador.jsp" method="POST">
                                                     <input type="hidden" name="accion" value="finalizar_proyecto">
                                                     <input type="hidden" name="id_proyecto" value="${seg.proyecto_id}">
-                                                    <button type="submit" class="btn btn-warning btn-sm font-weight-bold">DAR AVAL FINAL</button>
+                                                    <input type="hidden" name="id_documento" value="${seg.id_documento}"> 
+                                                    <button type="submit" class="btn btn-warning btn-sm font-weight-bold">FINALIZAR</button>
                                                 </form>
                                             </c:when>
                                             <c:otherwise>
-                                                <button class="btn btn-dark btn-sm text-muted" disabled style="font-size: 0.7rem; border: 1px solid #333;">PENDIENTE AVALES</button>
+                                                <button class="btn btn-dark btn-sm text-muted" disabled style="font-size: 0.7rem;">PENDIENTE AVALES</button>
                                             </c:otherwise>
                                         </c:choose>
                                     </td>
@@ -222,7 +206,6 @@
                 </div>
             </div>
 
-            <%-- TABLA GENERAL DE PROYECTOS --%>
             <div class="card-dark p-4">
                 <h6 class="text-muted small font-weight-bold mb-4">TODOS LOS PROYECTOS</h6>
                 <div class="table-responsive">
@@ -230,8 +213,8 @@
                         <thead>
                             <tr>
                                 <th>CÓDIGO</th>
-                                <th>PROYECTO</th> <th>DESCRIPCION</th>
-                                <th>FACULTAD</th> <th>ESTADO</th>
+                                <th>PROYECTO</th>
+                                <th class="text-center">ESTADO</th>
                                 <th>ASIGNACIONES</th>
                             </tr>
                         </thead>
@@ -239,64 +222,49 @@
                             <c:forEach var="p" items="${misProyectos.rows}">
                                 <tr>
                                     <td class="text-warning font-weight-bold">${p.codigo_proyecto}</td>
-                                    <td class="text-white font-weight-bold small">${p.nombre_proyecto}</td>
-                                    <td class="text-white font-weight-bold">${p.descripcion}</td>
-                                    <td class="text-white font-weight-bold small">${p.facultad}</td>
-                                    <td style="text-align: center;">
-                                        <span class="badge-status ${p.estado == 'Asignado' || p.estado == 'Finalizado' ? 'badge-success' : 'badge-info'}">${p.estado}</span>
+                                    <td>
+                                        <div class="text-white small font-weight-bold">${p.nombre_proyecto}</div>
+                                        <div class="text-muted small">${p.facultad}</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge-status ${p.estado == 'Finalizado' ? 'badge-success' : 'badge-info'}">${p.estado}</span>
                                     </td>
                                     <td>
-                                        <c:if test="${not empty p.nombre_estudiante}">
-                                            <c:choose>
-                                                <c:when test="${p.director_id > 0 && p.evaluador_id > 0}">
-                                                    <div class="bg-dark p-2 rounded mt-2 border border-secondary" style="opacity: 0.85;">
-                                                        <div class="form-row">
-                                                            <div class="col">
-                                                                <label class="mb-0" style="font-size: 0.6rem; color: #28a745;">DIRECTOR <i class="fas fa-lock small"></i></label>
-                                                                <c:forEach var="d" items="${listaDirectores.rows}">
-                                                                    <c:if test="${p.director_id == d.id}"><div class="text-white small">${d.nombre_director}</div></c:if>
-                                                                </c:forEach>
-                                                            </div>
-                                                            <div class="col">
-                                                                <label class="mb-0" style="font-size: 0.6rem; color: #28a745;">EVALUADOR <i class="fas fa-lock small"></i></label>
-                                                                <c:forEach var="ev" items="${listaEvaluadores.rows}">
-                                                                    <c:if test="${p.evaluador_id == ev.id}"><div class="text-white small">${ev.nombre_evaluador}</div></c:if>
-                                                                </c:forEach>
-                                                            </div>
-                                                            <div class="col">
-                                                                <label class="mb-0" style="font-size: 0.6rem; color: #28a745;">ESTUDIANTE <i class="fas fa-lock small"></i></label>
-                                                                <div class="text-white small">${p.nombre_estudiante}</div>
-                                                            </div>
-                                                        </div>
+                                        <c:choose>
+                                            <c:when test="${p.director_id > 0 && p.evaluador_id > 0}">
+                                                <div class="bg-dark p-2 rounded border border-secondary" style="font-size: 0.7rem;">
+                                                    <div class="text-warning mb-1"><i class="fas fa-user-graduate mr-1"></i> ${p.nombre_estudiante}</div>
+                                                    <div class="text-white mb-1"><i class="fas fa-user-tie mr-1"></i> Dir: 
+                                                        <c:forEach var="d" items="${listaDirectores.rows}"><c:if test="${p.director_id == d.id}">${d.nombre_director}</c:if></c:forEach>
                                                     </div>
-                                                </c:when>
-                                                <c:otherwise>
-                                                    <form action="../acciones_coordinador.jsp" method="POST" class="bg-dark p-2 rounded mt-2">
-                                                        <input type="hidden" name="accion" value="asignar_personal">
-                                                        <input type="hidden" name="id_proyecto" value="${p.id}">
-                                                        <div class="form-row align-items-end">
-                                                            <div class="col">
-                                                                <label class="mb-1" style="font-size: 0.6rem;">DIRECTOR</label>
-                                                                <select name="id_director" class="form-control form-control-sm border-secondary" required>
-                                                                    <option value="">--</option>
-                                                                    <c:forEach var="d" items="${listaDirectores.rows}"><option value="${d.id}">${d.nombre_director}</option></c:forEach>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col">
-                                                                <label class="mb-1" style="font-size: 0.6rem;">EVALUADOR</label>
-                                                                <select name="id_evaluador" class="form-control form-control-sm border-secondary" required>
-                                                                    <option value="">--</option>
-                                                                    <c:forEach var="ev" items="${listaEvaluadores.rows}"><option value="${ev.id}">${ev.nombre_evaluador}</option></c:forEach>
-                                                                </select>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <button type="submit" class="btn btn-warning btn-sm" style="height:31px;"><i class="fas fa-save"></i></button>
-                                                            </div>
+                                                    <div class="text-white"><i class="fas fa-search mr-1"></i> Eva: 
+                                                        <c:forEach var="ev" items="${listaEvaluadores.rows}"><c:if test="${p.evaluador_id == ev.id}">${ev.nombre_evaluador}</c:if></c:forEach>
+                                                    </div>
+                                                </div>
+                                            </c:when>
+                                            <c:when test="${not empty p.nombre_estudiante}">
+                                                <form action="../acciones_coordinador.jsp" method="POST" class="bg-dark p-2 rounded border border-warning">
+                                                    <input type="hidden" name="accion" value="asignar_personal">
+                                                    <input type="hidden" name="id_proyecto" value="${p.id}">
+                                                    <div class="form-row align-items-end">
+                                                        <div class="col">
+                                                            <select name="id_director" class="form-control form-control-sm" required>
+                                                                <option value="">Director...</option>
+                                                                <c:forEach var="d" items="${listaDirectores.rows}"><option value="${d.id}">${d.nombre_director}</option></c:forEach>
+                                                            </select>
                                                         </div>
-                                                    </form>
-                                                </c:otherwise>
-                                            </c:choose>
-                                        </c:if>
+                                                        <div class="col">
+                                                            <select name="id_evaluador" class="form-control form-control-sm" required>
+                                                                <option value="">Evaluador...</option>
+                                                                <c:forEach var="ev" items="${listaEvaluadores.rows}"><option value="${ev.id}">${ev.nombre_evaluador}</option></c:forEach>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-auto"><button type="submit" class="btn btn-warning btn-sm"><i class="fas fa-save"></i></button></div>
+                                                    </div>
+                                                </form>
+                                            </c:when>
+                                            <c:otherwise><span class="text-muted small"><i>Esperando solicitud...</i></span></c:otherwise>
+                                        </c:choose>
                                     </td>
                                 </tr>
                             </c:forEach>

@@ -10,11 +10,46 @@
     password="${applicationScope.dbPass}" />
 
 <c:choose>
-    <%-- 1. ACCIÓN: CREAR NUEVO PROYECTO --%>
+    <%-- 1. ACCIÓN: FINALIZAR PROYECTO (AVAL FINAL) --%>
+    <c:when test="${param.accion == 'finalizar_proyecto'}">
+        <c:set var="idProy" value="${param.id_proyecto}" />
+        <c:set var="idDoc" value="${param.id_documento}" />
+
+        <c:choose>
+            <%-- Estructura idéntica a la del evaluador para asegurar éxito --%>
+            <c:when test="${not empty idDoc}">
+                <%-- A. Actualizar el estado del coordinador en el documento --%>
+                <sql:update dataSource="${ds}">
+                    UPDATE documentos_proyecto 
+                    SET estado_coordinador = 'Aprobado' 
+                    WHERE id = ?
+                    <sql:param value="${idDoc}" />
+                </sql:update>
+
+                <%-- B. Actualizar el estado general del proyecto a Finalizado --%>
+                <c:if test="${not empty idProy}">
+                    <sql:update dataSource="${ds}">
+                        UPDATE proyectos 
+                        SET estado = 'Finalizado' 
+                        WHERE id = ?
+                        <sql:param value="${idProy}" />
+                    </sql:update>
+                </c:if>
+
+                <c:redirect url="dashboards/dashboard_coordinadores.jsp?msj=Proyecto Finalizado Correctamente" />
+            </c:when>
+            
+            <c:otherwise>
+                <c:redirect url="dashboards/dashboard_coordinadores.jsp?error=No se recibió el ID del documento" />
+            </c:otherwise>
+        </c:choose>
+    </c:when>
+
+    <%-- 2. ACCIÓN: CREAR PROYECTO --%>
     <c:when test="${param.accion == 'crear_proyecto'}">
         <sql:update dataSource="${ds}">
-            INSERT INTO proyectos (nombre_proyecto, codigo_proyecto, facultad, descripcion, estado, coordinador_id)
-            VALUES (?, ?, ?, ?, 'Disponible', ?)
+            INSERT INTO proyectos (nombre_proyecto, codigo_proyecto, facultad, descripcion, coordinador_id, estado)
+            VALUES (?, ?, ?, ?, ?, 'Disponible')
             <sql:param value="${param.txtNombre}" />
             <sql:param value="${param.txtCodigo}" />
             <sql:param value="${param.txtFacultad}" />
@@ -24,45 +59,16 @@
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
 
-    <%-- 2. ACCIÓN: APROBAR ESTUDIANTE Y COMPAÑEROS --%>
+    <%-- 3. ACCIÓN: APROBAR SOLICITUD DE ESTUDIANTE --%>
     <c:when test="${param.accion == 'aprobar_estudiante'}">
-        <%-- Obtenemos los IDs de la solicitud --%>
-        <sql:query dataSource="${ds}" var="resSol">
-            SELECT * FROM solicitudes_proyectos WHERE id = ?
-            <sql:param value="${param.id_solicitud}" />
-        </sql:query>
-        
-        <c:if test="${resSol.rowCount > 0}">
-            <c:set var="sol" value="${resSol.rows[0]}" />
-            
-            <%-- Actualizamos el proyecto solo con los integrantes --%>
-            <sql:update dataSource="${ds}">
-                UPDATE proyectos SET 
-                    estudiante_id = ?, 
-                    companero1_id = ?, 
-                    companero2_id = ?, 
-                    estado = 'Asignado' 
-                WHERE id = ?
-                <sql:param value="${sol.estudiante_id}" />
-                <sql:param value="${sol.companero1_id}" />
-                <sql:param value="${sol.companero2_id}" />
-                <sql:param value="${sol.proyecto_id}" />
-            </sql:update>
-
-            <%-- Marcamos la solicitud como 'Aprobada' --%>
-            <sql:update dataSource="${ds}">
-                UPDATE solicitudes_proyectos SET estado = 'Aprobada' WHERE id = ?
-                <sql:param value="${param.id_solicitud}" />
-            </sql:update>
-        </c:if>
-        <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
-    </c:when>
-
-    <%-- 3. ACCIÓN: RECHAZAR ESTUDIANTE --%>
-    <c:when test="${param.accion == 'rechazar_estudiante'}">
         <sql:update dataSource="${ds}">
-            UPDATE solicitudes_proyectos SET estado = 'Rechazada' WHERE id = ?
+            UPDATE solicitudes_proyectos SET estado = 'Aprobada' WHERE id = ?
             <sql:param value="${param.id_solicitud}" />
+        </sql:update>
+        <sql:update dataSource="${ds}">
+            UPDATE proyectos SET estudiante_id = ?, estado = 'Asignado' WHERE id = ?
+            <sql:param value="${param.id_estudiante}" />
+            <sql:param value="${param.id_proyecto}" />
         </sql:update>
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
@@ -70,22 +76,25 @@
     <%-- 4. ACCIÓN: ASIGNAR DIRECTOR Y EVALUADOR --%>
     <c:when test="${param.accion == 'asignar_personal'}">
         <sql:update dataSource="${ds}">
-            UPDATE proyectos SET 
-                director_id = ?, 
-                evaluador_id = ? 
-            WHERE id = ?
+            UPDATE proyectos SET director_id = ?, evaluador_id = ? WHERE id = ?
             <sql:param value="${param.id_director}" />
             <sql:param value="${param.id_evaluador}" />
+            <sql:param value="${param.id_proyecto}" />
+        </sql:update>
+        <%-- Registro inicial para que aparezca en la tabla de seguimiento --%>
+        <sql:update dataSource="${ds}">
+            INSERT INTO documentos_proyecto (proyecto_id, nombre_documento, estado_director, estado_evaluador, estado_coordinador)
+            VALUES (?, 'Documento Inicial', 'Pendiente', 'Pendiente', 'Pendiente')
             <sql:param value="${param.id_proyecto}" />
         </sql:update>
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
 
-    <%-- 5. NUEVA ACCIÓN: FINALIZAR PROYECTO (AVAL FINAL) --%>
-    <c:when test="${param.accion == 'finalizar_proyecto'}">
+    <%-- 5. ACCIÓN: RECHAZAR SOLICITUD --%>
+    <c:when test="${param.accion == 'rechazar_estudiante'}">
         <sql:update dataSource="${ds}">
-            UPDATE proyectos SET estado = 'Finalizado' WHERE id = ?
-            <sql:param value="${param.id_proyecto}" />
+            UPDATE solicitudes_proyectos SET estado = 'Rechazada' WHERE id = ?
+            <sql:param value="${param.id_solicitud}" />
         </sql:update>
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
