@@ -16,7 +16,6 @@
         <c:set var="idDoc" value="${param.id_documento}" />
 
         <c:choose>
-            <%-- Estructura idéntica a la del evaluador para asegurar éxito --%>
             <c:when test="${not empty idDoc}">
                 <%-- A. Actualizar el estado del coordinador en el documento --%>
                 <sql:update dataSource="${ds}">
@@ -38,9 +37,8 @@
 
                 <c:redirect url="dashboards/dashboard_coordinadores.jsp?msj=Proyecto Finalizado Correctamente" />
             </c:when>
-            
             <c:otherwise>
-                <c:redirect url="dashboards/dashboard_coordinadores.jsp?error=No se recibió el ID del documento" />
+                <c:redirect url="dashboards/dashboard_coordinadores.jsp?error=No se recibio el ID del documento" />
             </c:otherwise>
         </c:choose>
     </c:when>
@@ -73,18 +71,20 @@
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
     </c:when>
 
-    <%-- 4. ACCIÓN: ASIGNAR DIRECTOR Y EVALUADOR --%>
+    <%-- 4. ACCIÓN: ASIGNAR DIRECTOR Y EVALUADOR (CORREGIDA PARA EVITAR ERROR DE LINK_DRIVE) --%>
     <c:when test="${param.accion == 'asignar_personal'}">
+        <%-- Actualizamos la tabla de proyectos --%>
         <sql:update dataSource="${ds}">
             UPDATE proyectos SET director_id = ?, evaluador_id = ? WHERE id = ?
             <sql:param value="${param.id_director}" />
             <sql:param value="${param.id_evaluador}" />
             <sql:param value="${param.id_proyecto}" />
         </sql:update>
-        <%-- Registro inicial para que aparezca en la tabla de seguimiento --%>
+
+        <%-- Registro inicial en documentos_proyecto incluyendo link_drive para evitar error 500 --%>
         <sql:update dataSource="${ds}">
-            INSERT INTO documentos_proyecto (proyecto_id, nombre_documento, estado_director, estado_evaluador, estado_coordinador)
-            VALUES (?, 'Documento Inicial', 'Pendiente', 'Pendiente', 'Pendiente')
+            INSERT INTO documentos_proyecto (proyecto_id, nombre_documento, link_drive, estado_director, estado_evaluador, estado_coordinador)
+            VALUES (?, 'Documento Inicial', 'Sin asignar', 'Pendiente', 'Pendiente', 'Pendiente')
             <sql:param value="${param.id_proyecto}" />
         </sql:update>
         <c:redirect url="dashboards/dashboard_coordinadores.jsp" />
